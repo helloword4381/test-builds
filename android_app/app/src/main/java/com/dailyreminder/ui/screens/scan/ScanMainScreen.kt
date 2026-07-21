@@ -417,7 +417,7 @@ private fun ImageProcessCard(
             StepButtons("清晰度", options.clarity) { onOptionsChange(options.copy(clarity = it)) }
             StepButtons("画质增强", options.quality) { onOptionsChange(options.copy(quality = it)) }
             StepButtons("锐化", options.sharpen) { onOptionsChange(options.copy(sharpen = it)) }
-            OptionSwitch("文档自动校正", options.autoCorrect) { onOptionsChange(options.copy(autoCorrect = it)) }
+            OptionSwitch("自动识别裁切 / 拉正", options.autoCorrect) { onOptionsChange(options.copy(autoCorrect = it)) }
             OptionSwitch("去除阴影", options.removeShadow) { onOptionsChange(options.copy(removeShadow = it)) }
             OptionSwitch("遮挡修复", options.removeOcclusion) { onOptionsChange(options.copy(removeOcclusion = it)) }
         }
