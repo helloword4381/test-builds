@@ -1,0 +1,120 @@
+name: Build Android APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'android_app/**'
+      - '.github/workflows/build-apk.yml'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Push version.json early (app detects update immediately)
+        run: |
+          VERSION_NAME=$(sed -n 's/.*versionName[[:space:]]*=[[:space:]]*"\(.*\)".*/\1/p' android_app/app/build.gradle.kts)
+          VERSION_CODE=$(sed -n 's/.*versionCode[[:space:]]*=[[:space:]]*\([0-9]*\).*/\1/p' android_app/app/build.gradle.kts)
+          mkdir -p release
+          printf '{"versionName":"%s","versionCode":%s,"md5":"","downloadUrl":"https://ghfast.top/https://raw.githubusercontent.com/helloword4381/test-builds/main/release/Daily-Aide.apk"}\n' \
+            "$VERSION_NAME" "$VERSION_CODE" > release/version.json
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add release/version.json
+          git diff --cached --quiet || git commit -m "pre-release version.json [skip ci]"
+          git pull --rebase origin main || true
+          git push --force
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          packages: >-
+            platforms;android-34
+            build-tools;34.0.0
+            platform-tools
+          accept-android-sdk-licenses: true
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v3
+        with:
+          gradle-version: 8.7
+
+      - name: Build Release APK
+        id: build
+        run: |
+          cd android_app
+          gradle assembleDebug --no-daemon --build-cache
+          # 查找 APK 并保存路径
+          APK=$(find . -name "*.apk" -type f | head -1)
+          echo "APK_PATH=$APK" >> $GITHUB_ENV
+          echo "Found APK: $APK"
+
+      - name: Compute MD5 + Generate build-info.json
+        run: |
+          cd android_app
+          VERSION_NAME=$(sed -n 's/.*versionName[[:space:]]*=[[:space:]]*"\(.*\)".*/\1/p' app/build.gradle.kts)
+          VERSION_CODE=$(sed -n 's/.*versionCode[[:space:]]*=[[:space:]]*\([0-9]*\).*/\1/p' app/build.gradle.kts)
+          APK_PATH_VAL="${{ env.APK_PATH }}"
+          MD5=$(md5sum "$APK_PATH_VAL" | cut -d' ' -f1)
+          # 纯英文命名，避免中文被替换导致文件名不匹配
+          APK_NAME="daily-reminder-v${VERSION_NAME}.apk"
+          cp "$APK_PATH_VAL" "$APK_NAME"
+          echo "APK_PATH=$APK_NAME" >> $GITHUB_ENV
+          printf '{"versionName":"%s","versionCode":%s,"buildNumber":%s,"md5":"%s","apkName":"%s"}\n' \
+            "$VERSION_NAME" "$VERSION_CODE" "${{ github.run_number }}" "$MD5" "$APK_NAME" > build-info.json
+          echo "build-info.json: $(cat build-info.json)"
+          echo "BUILD_INFO_PATH=build-info.json" >> $GITHUB_ENV
+
+      - name: Publish to release/ directory (jsDelivr CDN)
+        run: |
+          VERSION_NAME=$(sed -n 's/.*versionName[[:space:]]*=[[:space:]]*"\(.*\)".*/\1/p' android_app/app/build.gradle.kts)
+          VERSION_CODE=$(sed -n 's/.*versionCode[[:space:]]*=[[:space:]]*\([0-9]*\).*/\1/p' android_app/app/build.gradle.kts)
+          APK_PATH_VAL="android_app/${{ env.APK_PATH }}"
+          MD5=$(md5sum "$APK_PATH_VAL" | cut -d' ' -f1)
+
+          mkdir -p release
+          cp "$APK_PATH_VAL" release/Daily-Aide.apk
+          printf '{"versionName":"%s","versionCode":%s,"md5":"%s","downloadUrl":"https://ghfast.top/https://raw.githubusercontent.com/helloword4381/test-builds/main/release/Daily-Aide.apk"}\n' \
+            "$VERSION_NAME" "$VERSION_CODE" "$MD5" > release/version.json
+          echo "release/version.json: $(cat release/version.json)"
+
+      - name: Commit & Push release/ directory
+        run: |
+          VERSION_NAME=$(sed -n 's/.*versionName[[:space:]]*=[[:space:]]*"\(.*\)".*/\1/p' android_app/app/build.gradle.kts)
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add release/
+          git diff --cached --quiet || git commit -m "release: v${VERSION_NAME} [skip ci]"
+          git pull --rebase origin main || true
+          git push --force
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: build-${{ github.run_number }}
+          name: 构建 #${{ github.run_number }}
+          body: |
+            📱 自动构建 Android APK
+            
+            构建时间：${{ github.event.head_commit.timestamp || github.event.repository.updated_at }}
+            提交：${{ github.sha }}
+          files: |
+            android_app/${{ env.APK_PATH }}
+            android_app/${{ env.BUILD_INFO_PATH }}
+          generate_release_notes: false
+          make_latest: true
