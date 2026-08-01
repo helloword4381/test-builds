@@ -1,0 +1,1096 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>像素机甲对战 - Pixel Mecha Battle</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #0a0a1a;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    font-family: 'Courier New', monospace;
+    overflow: hidden;
+  }
+  .game-wrapper {
+    position: relative;
+    border: 3px solid #334;
+    border-radius: 8px;
+    box-shadow: 0 0 40px rgba(68, 136, 255, 0.15), inset 0 0 20px rgba(0,0,0,0.5);
+  }
+  canvas {
+    display: block;
+    background: #1a1a2e;
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
+  }
+  .overlay {
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    pointer-events: none;
+  }
+  .overlay.active { pointer-events: auto; }
+  .overlay.hidden { display: none; }
+  .title {
+    font-size: 28px;
+    color: #ffcc00;
+    text-shadow: 3px 3px 0 #886600, 0 0 20px rgba(255,204,0,0.5);
+    letter-spacing: 6px;
+    margin-bottom: 10px;
+    font-family: 'Courier New', monospace;
+  }
+  .subtitle {
+    font-size: 13px;
+    color: #88aacc;
+    margin-bottom: 30px;
+    letter-spacing: 2px;
+  }
+  .btn {
+    background: #334;
+    color: #ccd;
+    border: 2px solid #556;
+    padding: 12px 40px;
+    font-size: 18px;
+    font-family: 'Courier New', monospace;
+    cursor: pointer;
+    transition: all 0.2s;
+    letter-spacing: 3px;
+    pointer-events: auto;
+  }
+  .btn:hover {
+    background: #445;
+    border-color: #ffcc00;
+    color: #ffcc00;
+    box-shadow: 0 0 20px rgba(255,204,0,0.2);
+  }
+  .controls-info {
+    position: absolute;
+    bottom: 12px;
+    left: 0; right: 0;
+    display: flex;
+    justify-content: space-between;
+    padding: 0 20px;
+    font-size: 11px;
+    color: #556677;
+    font-family: 'Courier New', monospace;
+    pointer-events: none;
+  }
+  .controls-info span {
+    background: rgba(0,0,0,0.6);
+    padding: 4px 10px;
+    border: 1px solid #334;
+  }
+  .controls-info .p1 { color: #5599ff; }
+  .controls-info .p2 { color: #ff5555; }
+  .result-text {
+    font-size: 42px;
+    font-weight: bold;
+    text-shadow: 4px 4px 0 rgba(0,0,0,0.8);
+    letter-spacing: 4px;
+    margin-bottom: 8px;
+  }
+  .result-sub {
+    font-size: 14px;
+    color: #8899aa;
+    margin-bottom: 24px;
+  }
+  .hp-bar-container {
+    position: absolute;
+    top: 12px;
+    left: 20px;
+    right: 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    pointer-events: none;
+    gap: 12px;
+  }
+  .hp-group {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .hp-group.p2 { align-items: flex-end; }
+  .hp-label {
+    font-size: 10px;
+    color: #667788;
+    letter-spacing: 2px;
+  }
+  .hp-label.p1 { color: #5599ff; }
+  .hp-label.p2 { color: #ff5555; }
+  .hp-outer {
+    width: 100%;
+    max-width: 220px;
+    height: 14px;
+    background: #1a1a22;
+    border: 2px solid #334;
+    position: relative;
+  }
+  .hp-group.p2 .hp-outer { margin-left: auto; }
+  .hp-inner {
+    height: 100%;
+    transition: width 0.3s ease;
+    position: relative;
+  }
+  .hp-inner.p1 { background: linear-gradient(90deg, #2255aa, #5599ff); }
+  .hp-inner.p2 { background: linear-gradient(90deg, #ff4444, #ff7777); }
+  .hp-inner.danger { background: #ff2222 !important; animation: hpPulse 0.4s infinite; }
+  .hp-text {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 10px;
+    color: #fff;
+    font-weight: bold;
+    text-shadow: 1px 1px 0 rgba(0,0,0,0.8);
+  }
+  .hp-divider {
+    font-size: 20px;
+    color: #445;
+    font-weight: bold;
+    margin: 0 4px;
+  }
+  @keyframes hpPulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.6; }
+  }
+  .flash-overlay {
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.08s;
+  }
+  .flash-overlay.active { opacity: 0.3; }
+  .flash-overlay.p1-hit { background: #ff4444; }
+  .flash-overlay.p2-hit { background: #4488ff; }
+  .energy-text {
+    position: absolute;
+    font-size: 16px;
+    font-weight: bold;
+    font-family: 'Courier New', monospace;
+    pointer-events: none;
+    animation: floatUp 0.8s ease-out forwards;
+    z-index: 10;
+  }
+  @keyframes floatUp {
+    0% { opacity: 1; transform: translateY(0) scale(1); }
+    100% { opacity: 0; transform: translateY(-60px) scale(1.3); }
+  }
+</style>
+</head>
+<body>
+
+<div class="game-wrapper" id="gameWrapper">
+  <canvas id="gameCanvas" width="960" height="600"></canvas>
+
+  <!-- HP Bars -->
+  <div class="hp-bar-container" id="hpBars">
+    <div class="hp-group p1">
+      <div class="hp-label p1">P1 蓝霆</div>
+      <div class="hp-outer"><div class="hp-inner p1" id="hp1Bar" style="width:100%"><span class="hp-text" id="hp1Text">100</span></div></div>
+    </div>
+    <div class="hp-divider">⚡</div>
+    <div class="hp-group p2">
+      <div class="hp-label p2">P2 赤焰</div>
+      <div class="hp-outer"><div class="hp-inner p2" id="hp2Bar" style="width:100%"><span class="hp-text" id="hp2Text">100</span></div></div>
+    </div>
+  </div>
+
+  <!-- Flash overlay -->
+  <div class="flash-overlay" id="flashOverlay"></div>
+
+  <!-- Start Screen -->
+  <div class="overlay" id="startScreen">
+    <div class="title">⚔ 机甲对决 ⚔</div>
+    <div class="subtitle">— PIXEL MECHA BATTLE —</div>
+    <button class="btn" id="startBtn">开 始 战 斗</button>
+    <div class="controls-info" style="position:static; margin-top: 40px; gap: 60px; display:flex;">
+      <span class="p1">W跳 A← D→ F攻击 G防御</span>
+      <span class="p2">↑跳 ←→  J攻击 K防御</span>
+    </div>
+  </div>
+
+  <!-- Game Over Screen -->
+  <div class="overlay hidden" id="gameOverScreen">
+    <div class="result-text" id="resultText">P1 获胜!</div>
+    <div class="result-sub" id="resultSub">按下方按钮重新开始</div>
+    <button class="btn" id="restartBtn">再 战 一 局</button>
+  </div>
+</div>
+
+<script>
+// ============================================================
+//  PIXEL MECHA BATTLE  —  Complete Game
+// ============================================================
+
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+const W = 960, H = 600;
+const GROUND_Y = 520;
+
+// ---- Color palettes ----
+const COLORS = {
+  p1: { primary: '#4488ff', dark: '#2255aa', light: '#77bbff', accent: '#ffcc00', gray: '#8899aa', white: '#ffffff', shield: '#44aaff' },
+  p2: { primary: '#ff4444', dark: '#cc2222', light: '#ff7777', accent: '#ffcc00', gray: '#8899aa', white: '#ffffff', shield: '#ff6644' },
+  env: { sky: '#0f0f23', sky2: '#1a1a3e', ground: '#2a2a3a', groundLine: '#3a3a4a', bldg1: '#1a1a30', bldg2: '#151528', bldg3: '#202038', stars: '#ffffff' }
+};
+
+// ---- Pixel art sprite definitions ----
+// Each sprite is a 2D array of color indices.
+// Index mapping: 0=transparent, 1=primary, 2=dark, 3=light, 4=accent(yellow), 5=gray, 6=white
+
+// Sprite size: 12 columns x 16 rows (displayed at 4px per pixel = 48x64)
+const SPRITE_W = 12, SPRITE_H = 16, PIXEL = 4;
+
+// ---- IDLE FRAME ----
+const IDLE = [
+  [0,0,0,0,1,1,1,1,0,0,0,0],
+  [0,0,0,1,1,1,1,1,1,0,0,0],
+  [0,0,0,1,2,4,4,2,1,0,0,0],
+  [0,0,0,1,1,3,3,1,1,0,0,0],
+  [0,0,0,1,1,1,1,1,1,0,0,0],
+  [0,0,0,1,1,0,0,1,1,0,0,0],
+  [0,0,1,1,1,1,1,1,1,1,0,0],
+  [0,0,0,1,1,5,5,1,1,0,0,0],
+  [0,0,0,0,1,1,1,1,0,0,0,0],
+  [0,0,0,0,1,5,5,1,0,0,0,0],
+  [0,0,0,0,1,0,0,1,0,0,0,0],
+  [0,0,0,0,1,0,0,1,0,0,0,0],
+  [0,0,0,0,1,1,1,1,0,0,0,0],
+  [0,0,0,0,1,0,0,1,0,0,0,0],
+  [0,0,0,0,1,0,0,1,0,0,0,0],
+  [0,0,0,1,1,0,0,1,1,0,0,0],
+];
+
+// ---- WALK FRAME 1 (right leg forward) ----
+const WALK1 = [
+  [0,0,0,0,1,1,1,1,0,0,0,0],
+  [0,0,0,1,1,1,1,1,1,0,0,0],
+  [0,0,0,1,2,4,4,2,1,0,0,0],
+  [0,0,0,1,1,3,3,1,1,0,0,0],
+  [0,0,0,1,1,1,1,1,1,0,0,0],
+  [0,0,0,1,1,0,0,1,1,0,0,0],
+  [0,0,1,1,1,1,1,1,1,1,0,0],
+  [0,0,0,1,1,5,5,1,1,0,0,0],
+  [0,0,0,0,1,1,1,1,0,0,0,0],
+  [0,0,0,0,1,5,5,1,0,0,0,0],
+  [0,0,0,1,1,0,0,0,0,0,0,0],
+  [0,0,0,0,1,0,0,0,0,0,0,0],
+  [0,0,0,0,1,1,0,0,0,0,0,0],
+  [0,0,0,0,0,1,0,0,0,0,0,0],
+  [0,0,0,0,0,1,0,0,0,0,0,0],
+  [0,0,0,0,1,1,0,0,0,0,0,0],
+];
+
+// ---- WALK FRAME 2 (left leg forward) ----
+const WALK2 = [
+  [0,0,0,0,1,1,1,1,0,0,0,0],
+  [0,0,0,1,1,1,1,1,1,0,0,0],
+  [0,0,0,1,2,4,4,2,1,0,0,0],
+  [0,0,0,1,1,3,3,1,1,0,0,0],
+  [0,0,0,1,1,1,1,1,1,0,0,0],
+  [0,0,0,1,1,0,0,1,1,0,0,0],
+  [0,0,1,1,1,1,1,1,1,1,0,0],
+  [0,0,0,1,1,5,5,1,1,0,0,0],
+  [0,0,0,0,1,1,1,1,0,0,0,0],
+  [0,0,0,0,1,5,5,1,0,0,0,0],
+  [0,0,0,0,0,0,0,1,1,0,0,0],
+  [0,0,0,0,0,0,0,0,1,0,0,0],
+  [0,0,0,0,0,0,0,0,1,1,0,0],
+  [0,0,0,0,0,0,0,0,1,0,0,0],
+  [0,0,0,0,0,0,0,0,1,0,0,0],
+  [0,0,0,0,0,0,0,1,1,0,0,0],
+];
+
+// ---- ATTACK FRAME (arm extended forward with punch effect) ----
+const ATTACK = [
+  [0,0,0,0,1,1,1,1,0,0,0,0],
+  [0,0,0,1,1,1,1,1,1,0,0,0],
+  [0,0,0,1,2,4,4,2,1,0,0,0],
+  [0,0,0,1,1,3,3,1,1,0,0,0],
+  [0,0,0,1,1,1,1,1,1,0,0,0],
+  [0,0,0,1,1,0,0,1,1,0,0,0],
+  [0,0,1,1,1,1,1,1,1,1,0,0],
+  [0,0,0,1,1,5,5,1,1,0,0,0],
+  [0,0,0,0,1,1,1,1,0,0,0,0],
+  [0,0,0,0,1,5,5,1,0,0,0,0],
+  [0,0,0,0,1,0,0,1,0,0,0,0],
+  [0,0,0,0,1,0,0,1,0,0,0,0],
+  [0,0,0,0,1,1,1,1,0,0,0,0],
+  [0,0,0,0,1,0,0,1,0,0,0,0],
+  [0,0,0,0,1,0,0,1,0,0,0,0],
+  [0,0,0,1,1,0,0,1,1,0,0,0],
+];
+
+// Shield sprite (small, drawn in front of mecha)
+const SHIELD = [
+  [0,0,0,0,0,0,0,0,0],
+  [0,1,1,1,1,1,1,1,0],
+  [0,1,2,2,2,2,2,1,0],
+  [0,1,2,3,3,3,2,1,0],
+  [0,1,2,2,2,2,2,1,0],
+  [0,1,1,1,1,1,1,1,0],
+  [0,0,0,0,0,0,0,0,0],
+];
+
+// ---- Damage popup system ----
+let damagePopups = [];
+function addDamagePopup(x, y, amount, blocked) {
+  damagePopups.push({
+    x, y: y - 10,
+    vy: -2.5,
+    text: blocked ? '🛡 ' + amount : '-' + amount,
+    color: blocked ? '#44aaff' : '#ffcc00',
+    life: 45,
+    maxLife: 45,
+    size: blocked ? 14 : 18
+  });
+}
+
+// ---- Flash overlay system ----
+let flashState = { active: false, timer: 0, type: '' };
+function flashOverlay(type) {
+  flashState.active = true;
+  flashState.timer = 8;
+  flashState.type = type;
+  const el = document.getElementById('flashOverlay');
+  el.className = 'flash-overlay active ' + type;
+}
+
+// ---- Draw a pixel sprite ----
+function drawSprite(sprite, palette, x, y, scale = PIXEL, flip = false) {
+  for (let row = 0; row < sprite.length; row++) {
+    for (let col = 0; col < sprite[row].length; col++) {
+      const idx = sprite[row][col];
+      if (idx === 0) continue;
+      const color = palette[idx] || palette[1];
+      const sx = flip ? x + (sprite[row].length - 1 - col) * scale : x + col * scale;
+      const sy = y + row * scale;
+      ctx.fillStyle = color;
+      ctx.fillRect(sx, sy, scale, scale);
+    }
+  }
+}
+
+// ---- Draw shield ----
+function drawShield(palette, cx, cy, scale = 3) {
+  const sw = SHIELD[0].length * scale, sh = SHIELD.length * scale;
+  const sx = cx - sw / 2, sy = cy - sh / 2;
+  const shieldPalette = [null, palette.shield, palette.dark, palette.light, null, null, null];
+  for (let row = 0; row < SHIELD.length; row++) {
+    for (let col = 0; col < SHIELD[row].length; col++) {
+      const idx = SHIELD[row][col];
+      if (idx === 0) continue;
+      ctx.fillStyle = shieldPalette[idx];
+      ctx.fillRect(sx + col * scale, sy + row * scale, scale, scale);
+    }
+  }
+  // glow
+  ctx.shadowColor = palette.shield;
+  ctx.shadowBlur = 12;
+  ctx.strokeStyle = palette.shield;
+  ctx.globalAlpha = 0.3;
+  ctx.lineWidth = 2;
+  ctx.strokeRect(sx - 2, sy - 2, sw + 4, sh + 4);
+  ctx.globalAlpha = 1;
+  ctx.shadowBlur = 0;
+}
+
+// ============================================================
+//  MECHA CLASS
+// ============================================================
+class Mecha {
+  constructor(x, player, palette) {
+    this.x = x;
+    this.y = GROUND_Y;
+    this.vx = 0;
+    this.vy = 0;
+    this.player = player; // 1 or 2
+    this.palette = palette;
+    this.hp = 100;
+    this.maxHp = 100;
+    this.width = SPRITE_W * PIXEL;  // 48
+    this.height = SPRITE_H * PIXEL; // 64
+    this.facing = player === 1 ? 1 : -1; // 1=right, -1=left
+
+    // State
+    this.state = 'idle'; // idle, walk, attack, defend, hit, jump
+    this.stateTimer = 0;
+    this.attackCooldown = 0;
+    this.defending = false;
+    this.defenseStamina = 100;
+    this.invincible = 0;
+    this.combo = 0;
+
+    // Animation
+    this.walkFrame = 0;
+    this.walkTimer = 0;
+    this.idleBob = 0;
+    this.attackHit = false; // whether current attack already dealt damage
+
+    // Combo
+    this.comboCount = 0;
+    this.comboTimer = 0;
+    this.lastHitTime = 0;
+
+    // Screen shake
+    this.shakeX = 0;
+    this.shakeY = 0;
+    this.shakeDuration = 0;
+
+    // Particles
+    this.particles = [];
+
+    // Current sprite
+    this.currentSprite = IDLE;
+  }
+
+  get left() { return this.x - this.width / 2; }
+  get right() { return this.x + this.width / 2; }
+  get top() { return this.y - this.height; }
+  get bottom() { return this.y; }
+
+  hit(damage) {
+    if (this.invincible > 0) return false;
+    if (this.defending) {
+      // Defense reduces damage
+      const reduced = Math.floor(damage * 0.3);
+      this.hp -= reduced;
+      this.invincible = 10;
+      this.defenseStamina = Math.max(0, this.defenseStamina - 15);
+      this.spawnParticles('#44aaff', 8);
+      this.shakeDuration = 6;
+      addDamagePopup(this.x, this.y - 50, reduced, true);
+      // Flash the screen
+      flashOverlay(this.player === 1 ? 'p1-hit' : 'p2-hit');
+      // Recoil knockback
+      this.vx = (this.player === 1 ? -1 : 1) * 3;
+      return { damage: reduced, blocked: true };
+    } else {
+      this.hp -= damage;
+      this.invincible = 18;
+      this.state = 'hit';
+      this.stateTimer = 12;
+      this.spawnParticles('#ff4444', 12);
+      this.shakeDuration = 10;
+      addDamagePopup(this.x, this.y - 50, damage, false);
+      flashOverlay(this.player === 1 ? 'p1-hit' : 'p2-hit');
+      this.vx = (this.player === 1 ? -1 : 1) * 5;
+      this.vy = -3;
+      return { damage, blocked: false };
+    }
+  }
+
+  spawnParticles(color, count) {
+    for (let i = 0; i < count; i++) {
+      this.particles.push({
+        x: this.x + (Math.random() - 0.5) * 30,
+        y: this.y - 20 + Math.random() * 30,
+        vx: (Math.random() - 0.5) * 8,
+        vy: (Math.random() - 0.5) * 8 - 2,
+        life: 30 + Math.random() * 20,
+        maxLife: 30 + Math.random() * 20,
+        size: 2 + Math.random() * 3,
+        color: color
+      });
+    }
+  }
+
+  update(keys, opponent) {
+    // Timers
+    if (this.attackCooldown > 0) this.attackCooldown--;
+    if (this.invincible > 0) this.invincible--;
+    if (this.stateTimer > 0) this.stateTimer--;
+    if (this.shakeDuration > 0) this.shakeDuration--;
+
+    // Combo timer
+    if (this.comboTimer > 0) {
+      this.comboTimer--;
+      if (this.comboTimer <= 0) this.comboCount = 0;
+    }
+
+    // Stamina regen
+    if (!this.defending) this.defenseStamina = Math.min(100, this.defenseStamina + 0.5);
+
+    // Determine facing
+    if (opponent) {
+      this.facing = opponent.x > this.x ? 1 : -1;
+    }
+
+    // State machine
+    if (this.state === 'hit') {
+      if (this.stateTimer <= 0) this.state = 'idle';
+    }
+
+    // Default state
+    if (this.state !== 'attack' && this.state !== 'hit') {
+      // Movement
+      const moveLeft = this.player === 1 ? keys['a'] : keys['ArrowLeft'];
+      const moveRight = this.player === 1 ? keys['d'] : keys['ArrowRight'];
+      const jumpKey = this.player === 1 ? keys['w'] : keys['ArrowUp'];
+      const attackKey = this.player === 1 ? keys['f'] : keys['j'];
+      const defendKey = this.player === 1 ? keys['g'] : keys['k'];
+
+      // Horizontal movement
+      if (moveLeft) {
+        this.vx = -4;
+        this.state = 'walk';
+      } else if (moveRight) {
+        this.vx = 4;
+        this.state = 'walk';
+      } else {
+        this.vx *= 0.7;
+        if (Math.abs(this.vx) < 0.3) this.vx = 0;
+        if (this.state === 'walk') this.state = 'idle';
+      }
+
+      // Jump
+      if (jumpKey && this.vy === 0 && this.y >= GROUND_Y - 1) {
+        this.vy = -10;
+      }
+
+      // Defense
+      this.defending = defendKey && this.defenseStamina > 0;
+      if (this.defending) {
+        this.defenseStamina = Math.max(0, this.defenseStamina - 0.8);
+        this.state = 'defend';
+        this.vx *= 0.85;
+      }
+
+      // Attack
+      if (attackKey && this.attackCooldown <= 0 && !this.defending) {
+        this.state = 'attack';
+        this.stateTimer = 15;
+        this.attackCooldown = 25;
+        this.attackHit = false;
+        // Lunge forward
+        this.vx = this.facing * 6;
+      }
+    }
+
+    // Attack state
+    if (this.state === 'attack') {
+      if (this.stateTimer <= 0) {
+        this.state = 'idle';
+      }
+      // Check hit on opponent during attack window
+      if (!this.attackHit && this.stateTimer > 5 && this.stateTimer < 13) {
+        const dist = Math.abs(this.x - opponent.x);
+        if (dist < 60) {
+          this.attackHit = true;
+          const dmg = 12 + Math.floor(Math.random() * 5);
+          const result = opponent.hit(dmg);
+          // Spawn hit effect
+          this.spawnHitEffect(opponent.x, opponent.y - 30, result.blocked);
+          // Screen shake
+          screenShake = 8;
+          // Combo
+          this.comboCount++;
+          this.comboTimer = 90; // ~1.5 seconds to land next hit
+          this.lastHitTime = Date.now();
+          if (result.blocked) {
+            // Recoil damage to attacker
+            this.hit(3);
+            this.spawnParticles('#ffcc00', 5);
+            this.comboCount = 0;
+          }
+        }
+      }
+    }
+
+    // Gravity
+    this.vy += 0.6;
+    this.x += this.vx;
+    this.y += this.vy;
+
+    // Ground collision
+    if (this.y >= GROUND_Y) {
+      this.y = GROUND_Y;
+      this.vy = 0;
+    }
+
+    // Boundaries
+    this.x = Math.max(40, Math.min(W - 40, this.x));
+
+    // Walk animation
+    if (this.state === 'walk') {
+      this.walkTimer++;
+      if (this.walkTimer > 8) {
+        this.walkTimer = 0;
+        this.walkFrame = (this.walkFrame + 1) % 2;
+      }
+    }
+
+    // Idle bob
+    this.idleBob += 0.05;
+
+    // Update particles
+    this.particles = this.particles.filter(p => {
+      p.x += p.vx;
+      p.y += p.vy;
+      p.vy += 0.2;
+      p.life--;
+      return p.life > 0;
+    });
+
+    // Shake offset
+    if (this.shakeDuration > 0) {
+      this.shakeX = (Math.random() - 0.5) * 6;
+      this.shakeY = (Math.random() - 0.5) * 4;
+    } else {
+      this.shakeX = 0;
+      this.shakeY = 0;
+    }
+  }
+
+  spawnHitEffect(x, y, blocked) {
+    const color = blocked ? '#44aaff' : '#ffcc00';
+    for (let i = 0; i < 8; i++) {
+      this.particles.push({
+        x: x + (Math.random() - 0.5) * 20,
+        y: y + (Math.random() - 0.5) * 20,
+        vx: (Math.random() - 0.5) * 10,
+        vy: (Math.random() - 0.5) * 10 - 2,
+        life: 20 + Math.random() * 15,
+        maxLife: 35,
+        size: 3 + Math.random() * 3,
+        color: color
+      });
+    }
+  }
+
+  getSprite() {
+    if (this.state === 'attack') return ATTACK;
+    if (this.state === 'defend') return IDLE;
+    if (this.state === 'walk') return this.walkFrame === 0 ? WALK1 : WALK2;
+    return IDLE;
+  }
+
+  draw(ctx) {
+    const pal = [null, this.palette.primary, this.palette.dark, this.palette.light, this.palette.accent, this.palette.gray, this.palette.white];
+    const sprite = this.getSprite();
+    const flip = this.facing < 0;
+
+    // Draw position with shake
+    const drawX = this.x + this.shakeX - this.width / 2;
+    const drawY = this.y - this.height + this.shakeY;
+
+    // Idle bob offset
+    let bobY = 0;
+    if (this.state === 'idle' || this.state === 'defend') {
+      bobY = Math.sin(this.idleBob * 2) * 1;
+    }
+
+    // Invincibility flash
+    if (this.invincible > 0 && Math.floor(this.invincible / 3) % 2 === 0) {
+      ctx.globalAlpha = 0.5;
+    }
+
+    // Shadow on ground
+    ctx.fillStyle = 'rgba(0,0,0,0.3)';
+    ctx.beginPath();
+    ctx.ellipse(this.x + this.shakeX, this.y + 2, 22, 4, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Draw sprite
+    drawSprite(sprite, pal, drawX, drawY + bobY, PIXEL, flip);
+
+    // Draw shield if defending
+    if (this.defending && this.defenseStamina > 0) {
+      const shieldX = this.x + this.shakeX + (this.facing * 22);
+      const shieldY = this.y - 30 + this.shakeY + bobY;
+      drawShield(this.palette, shieldX, shieldY, 3);
+      // Stamina bar above mecha
+      const sw = 40, sh = 3;
+      ctx.fillStyle = 'rgba(0,0,0,0.5)';
+      ctx.fillRect(this.x - sw / 2 - 1, this.y - this.height - 8 - 1, sw + 2, sh + 2);
+      ctx.fillStyle = this.defenseStamina > 30 ? '#44aaff' : '#ff6644';
+      ctx.fillRect(this.x - sw / 2, this.y - this.height - 8, sw * (this.defenseStamina / 100), sh);
+    }
+
+    // Draw attack energy fist
+    if (this.state === 'attack' && this.stateTimer > 3 && this.stateTimer < 12) {
+      const fistX = this.x + this.shakeX + (this.facing * 28);
+      const fistY = this.y - 30 + this.shakeY + bobY - 4;
+      const fistSize = 10 + Math.sin(this.stateTimer * 0.8) * 3;
+      ctx.shadowColor = this.palette.accent;
+      ctx.shadowBlur = 20;
+      ctx.fillStyle = this.palette.accent;
+      ctx.globalAlpha = 0.8;
+      ctx.fillRect(fistX - fistSize / 2, fistY - fistSize / 2, fistSize, fistSize);
+      // Inner bright core
+      ctx.fillStyle = '#ffffff';
+      ctx.globalAlpha = 0.6;
+      ctx.fillRect(fistX - fistSize / 4, fistY - fistSize / 4, fistSize / 2, fistSize / 2);
+      ctx.shadowBlur = 0;
+      ctx.globalAlpha = 1;
+    }
+
+    // Combo counter
+    if (this.comboCount >= 2) {
+      ctx.font = `bold ${14 + Math.min(this.comboCount, 5)}px 'Courier New', monospace`;
+      ctx.textAlign = 'center';
+      ctx.shadowColor = this.palette.accent;
+      ctx.shadowBlur = 8;
+      ctx.fillStyle = this.palette.accent;
+      ctx.globalAlpha = 0.7 + Math.sin(Date.now() * 0.01) * 0.3;
+      ctx.fillText(this.comboCount + ' COMBO!', this.x + this.shakeX, this.y - this.height - 14 + this.shakeY + bobY);
+      ctx.shadowBlur = 0;
+      ctx.globalAlpha = 1;
+    }
+
+    ctx.globalAlpha = 1;
+
+    // Draw particles
+    for (const p of this.particles) {
+      ctx.globalAlpha = p.life / p.maxLife;
+      ctx.fillStyle = p.color;
+      ctx.fillRect(p.x - p.size / 2, p.y - p.size / 2, p.size, p.size);
+    }
+    ctx.globalAlpha = 1;
+  }
+}
+
+// ============================================================
+//  BACKGROUND
+// ============================================================
+function drawBackground() {
+  // Sky gradient
+  const grad = ctx.createLinearGradient(0, 0, 0, GROUND_Y);
+  grad.addColorStop(0, COLORS.env.sky);
+  grad.addColorStop(0.5, COLORS.env.sky2);
+  grad.addColorStop(1, '#1e1e3a');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, W, GROUND_Y);
+
+  // Stars
+  ctx.fillStyle = COLORS.env.stars;
+  for (let i = 0; i < 60; i++) {
+    const sx = (i * 137.5 + 50) % W;
+    const sy = (i * 89.3 + 20) % (GROUND_Y * 0.6);
+    const size = (i % 3 === 0) ? 2 : 1;
+    const alpha = 0.3 + Math.sin(Date.now() * 0.001 + i) * 0.3 + 0.5;
+    ctx.globalAlpha = alpha * 0.6;
+    ctx.fillRect(sx, sy, size, size);
+  }
+  ctx.globalAlpha = 1;
+
+  // City silhouette
+  const buildings = [
+    { x: 0, w: 60, h: 180 }, { x: 65, w: 45, h: 240 }, { x: 115, w: 55, h: 160 },
+    { x: 175, w: 40, h: 280 }, { x: 220, w: 70, h: 200 }, { x: 295, w: 50, h: 260 },
+    { x: 350, w: 65, h: 150 }, { x: 420, w: 55, h: 300 }, { x: 480, w: 45, h: 220 },
+    { x: 530, w: 60, h: 250 }, { x: 595, w: 50, h: 180 }, { x: 650, w: 70, h: 270 },
+    { x: 725, w: 45, h: 210 }, { x: 775, w: 55, h: 290 }, { x: 835, w: 60, h: 230 },
+    { x: 900, w: 60, h: 190 },
+  ];
+
+  // Draw buildings back to front
+  ctx.fillStyle = COLORS.env.bldg1;
+  for (const b of buildings) {
+    ctx.fillRect(b.x, GROUND_Y - b.h, b.w, b.h);
+  }
+  // Building details (windows) - pre-seeded
+  ctx.fillStyle = 'rgba(255, 200, 100, 0.08)';
+  const windowSeed = [0.3, 0.7, 0.2, 0.8, 0.5, 0.1, 0.9, 0.4, 0.6, 0.2, 0.7, 0.3, 0.8, 0.5, 0.1, 0.9];
+  let wi = 0;
+  for (const b of buildings) {
+    for (let wy = GROUND_Y - b.h + 15; wy < GROUND_Y - 15; wy += 18) {
+      for (let wx = b.x + 8; wx < b.x + b.w - 8; wx += 14) {
+        if (windowSeed[wi++ % windowSeed.length] > 0.4) {
+          ctx.fillRect(wx, wy, 5, 6);
+        }
+      }
+    }
+  }
+  // Second layer buildings (darker)
+  ctx.fillStyle = COLORS.env.bldg2;
+  const bldg2 = [
+    { x: 30, w: 50, h: 140 }, { x: 140, w: 40, h: 120 }, { x: 260, w: 45, h: 160 },
+    { x: 380, w: 35, h: 130 }, { x: 500, w: 40, h: 150 }, { x: 620, w: 45, h: 140 },
+    { x: 740, w: 35, h: 170 }, { x: 860, w: 40, h: 130 },
+  ];
+  for (const b of bldg2) {
+    ctx.fillRect(b.x, GROUND_Y - b.h, b.w, b.h);
+  }
+
+  // Ground
+  ctx.fillStyle = COLORS.env.ground;
+  ctx.fillRect(0, GROUND_Y, W, H - GROUND_Y);
+
+  // Ground line
+  ctx.fillStyle = COLORS.env.groundLine;
+  ctx.fillRect(0, GROUND_Y, W, 2);
+
+  // Ground grid lines
+  ctx.strokeStyle = 'rgba(60, 60, 80, 0.3)';
+  ctx.lineWidth = 1;
+  for (let gx = 0; gx < W; gx += 40) {
+    ctx.beginPath();
+    ctx.moveTo(gx, GROUND_Y);
+    ctx.lineTo(gx, H);
+    ctx.stroke();
+  }
+  for (let gy = GROUND_Y + 5; gy < H; gy += 15) {
+    ctx.beginPath();
+    ctx.moveTo(0, gy);
+    ctx.lineTo(W, gy);
+    ctx.stroke();
+  }
+
+  // Ground highlight
+  ctx.fillStyle = 'rgba(255,255,255,0.03)';
+  ctx.fillRect(0, GROUND_Y + 2, W, 3);
+}
+
+// ============================================================
+//  GAME STATE
+// ============================================================
+let gameState = 'menu'; // menu, playing, gameover
+let p1, p2;
+let keys = {};
+let screenShake = 0;
+let shakeX = 0, shakeY = 0;
+let particles = []; // global particles (hit effects, etc.)
+let gameTimer = 0;
+let roundWins = { p1: 0, p2: 0 };
+
+function initGame() {
+  p1 = new Mecha(250, 1, COLORS.p1);
+  p2 = new Mecha(710, 2, COLORS.p2);
+  screenShake = 0;
+  shakeX = 0; shakeY = 0;
+  particles = [];
+  damagePopups = [];
+  flashState.active = false;
+  flashState.timer = 0;
+  document.getElementById('flashOverlay').className = 'flash-overlay';
+  gameTimer = 0;
+  updateHPUI();
+}
+
+function updateHPUI() {
+  const hp1 = Math.max(0, p1.hp);
+  const hp2 = Math.max(0, p2.hp);
+  document.getElementById('hp1Bar').style.width = (hp1 / p1.maxHp * 100) + '%';
+  document.getElementById('hp2Bar').style.width = (hp2 / p2.maxHp * 100) + '%';
+  document.getElementById('hp1Text').textContent = Math.ceil(hp1);
+  document.getElementById('hp2Text').textContent = Math.ceil(hp2);
+
+  // Danger state
+  document.getElementById('hp1Bar').classList.toggle('danger', hp1 < 25);
+  document.getElementById('hp2Bar').classList.toggle('danger', hp2 < 25);
+}
+
+function showGameOver(winner) {
+  gameState = 'gameover';
+  const overlay = document.getElementById('gameOverScreen');
+  overlay.classList.remove('hidden');
+  overlay.classList.add('active');
+
+  const resultText = document.getElementById('resultText');
+  const resultSub = document.getElementById('resultSub');
+  if (winner === 1) {
+    resultText.textContent = '⚡ 蓝霆 获胜!';
+    resultText.style.color = '#5599ff';
+    resultSub.textContent = 'P1 蓝霆机甲赢得了这场对决!';
+  } else {
+    resultText.textContent = '🔥 赤焰 获胜!';
+    resultText.style.color = '#ff5555';
+    resultSub.textContent = 'P2 赤焰机甲赢得了这场对决!';
+  }
+}
+
+// ============================================================
+//  MAIN GAME LOOP
+// ============================================================
+function update() {
+  if (gameState !== 'playing') return;
+
+  gameTimer++;
+  p1.update(keys, p2);
+  p2.update(keys, p1);
+
+  // Check collision between mechas (push apart)
+  const dist = Math.abs(p1.x - p2.x);
+  const minDist = (p1.width + p2.width) / 2;
+  if (dist < minDist) {
+    const overlap = minDist - dist;
+    const dir = p1.x < p2.x ? -1 : 1;
+    p1.x += dir * overlap * 0.5;
+    p2.x -= dir * overlap * 0.5;
+  }
+
+  // Screen shake decay
+  if (screenShake > 0) {
+    shakeX = (Math.random() - 0.5) * screenShake * 1.2;
+    shakeY = (Math.random() - 0.5) * screenShake * 0.8;
+    screenShake *= 0.85;
+    if (screenShake < 0.5) screenShake = 0;
+  } else {
+    shakeX = 0; shakeY = 0;
+  }
+
+  // Global particles
+  particles = particles.filter(p => {
+    p.x += p.vx;
+    p.y += p.vy;
+    p.vy += 0.15;
+    p.life--;
+    return p.life > 0;
+  });
+
+  // Merge mecha particles into global
+  for (const p of p1.particles) particles.push(p);
+  for (const p of p2.particles) particles.push(p);
+  p1.particles = [];
+  p2.particles = [];
+
+  // Update HP UI
+  updateHPUI();
+
+  // Flash overlay decay
+  if (flashState.active) {
+    flashState.timer--;
+    if (flashState.timer <= 0) {
+      flashState.active = false;
+      document.getElementById('flashOverlay').className = 'flash-overlay';
+    }
+  }
+
+  // Update damage popups
+  damagePopups = damagePopups.filter(p => {
+    p.y += p.vy;
+    p.vy *= 0.97;
+    p.life--;
+    return p.life > 0;
+  });
+
+  // Check win condition
+  if (p1.hp <= 0) {
+    p1.hp = 0;
+    showGameOver(2);
+  } else if (p2.hp <= 0) {
+    p2.hp = 0;
+    showGameOver(1);
+  }
+}
+
+function draw() {
+  ctx.save();
+
+  // Screen shake
+  if (screenShake > 0.5) {
+    ctx.translate(shakeX, shakeY);
+  }
+
+  drawBackground();
+
+  // Draw mechas (draw further one first for depth)
+  if (p1.x < p2.x) {
+    p1.draw(ctx);
+    p2.draw(ctx);
+  } else {
+    p2.draw(ctx);
+    p1.draw(ctx);
+  }
+
+  // Draw global particles
+  for (const p of particles) {
+    ctx.globalAlpha = Math.max(0, p.life / p.maxLife);
+    ctx.fillStyle = p.color;
+    const s = p.size * (0.5 + 0.5 * (p.life / p.maxLife));
+    ctx.fillRect(p.x - s / 2, p.y - s / 2, s, s);
+  }
+  ctx.globalAlpha = 1;
+
+  // Draw stamina bars for both
+  // (shield stamina already drawn per mecha)
+
+  // Draw damage popups
+  for (const p of damagePopups) {
+    const alpha = Math.min(1, p.life / 20);
+    ctx.globalAlpha = alpha;
+    ctx.font = `bold ${p.size}px 'Courier New', monospace`;
+    ctx.textAlign = 'center';
+    ctx.shadowColor = 'rgba(0,0,0,0.8)';
+    ctx.shadowBlur = 4;
+    ctx.fillStyle = p.color;
+    ctx.fillText(p.text, p.x, p.y);
+    ctx.shadowBlur = 0;
+  }
+  ctx.globalAlpha = 1;
+
+  ctx.restore();
+
+  // Draw scanline overlay
+  ctx.fillStyle = 'rgba(0,0,0,0.03)';
+  for (let sy = 0; sy < H; sy += 3) {
+    ctx.fillRect(0, sy, W, 1);
+  }
+
+  // Vignette
+  const vignette = ctx.createRadialGradient(W/2, H/2, 200, W/2, H/2, 500);
+  vignette.addColorStop(0, 'rgba(0,0,0,0)');
+  vignette.addColorStop(1, 'rgba(0,0,0,0.4)');
+  ctx.fillStyle = vignette;
+  ctx.fillRect(0, 0, W, H);
+}
+
+function gameLoop() {
+  update();
+  draw();
+  requestAnimationFrame(gameLoop);
+}
+
+// ============================================================
+//  INPUT HANDLING
+// ============================================================
+document.addEventListener('keydown', (e) => {
+  keys[e.key] = true;
+  // Prevent scrolling for arrow keys and space
+  if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' '].includes(e.key)) {
+    e.preventDefault();
+  }
+});
+
+document.addEventListener('keyup', (e) => {
+  keys[e.key] = false;
+  if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' '].includes(e.key)) {
+    e.preventDefault();
+  }
+});
+
+// ============================================================
+//  UI EVENTS
+// ============================================================
+document.getElementById('startBtn').addEventListener('click', () => {
+  document.getElementById('startScreen').classList.add('hidden');
+  gameState = 'playing';
+  initGame();
+});
+
+document.getElementById('restartBtn').addEventListener('click', () => {
+  document.getElementById('gameOverScreen').classList.add('hidden');
+  gameState = 'playing';
+  initGame();
+});
+
+// ============================================================
+//  START
+// ============================================================
+initGame();
+gameLoop();
+</script>
+</body>
+</html>
