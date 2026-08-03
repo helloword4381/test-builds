@@ -28,6 +28,25 @@ private:
 };
 IMPLEMENT_DYNAMIC(CInputDialog, CDialogEx)
 
+// 帮助对话框辅助类
+class CHelpDlgImpl : public CDialogEx
+{
+    DECLARE_DYNAMIC(CHelpDlgImpl)
+public:
+    CHelpDlgImpl(CWnd* pParent) : CDialogEx(IDD_HELP_DIALOG, pParent) {}
+    CString m_helpTitle;
+    CString m_helpContent;
+protected:
+    virtual BOOL OnInitDialog() {
+        CDialogEx::OnInitDialog();
+        SetWindowText(m_helpTitle);
+        CEdit* pEdit = (CEdit*)GetDlgItem(IDC_HELP_TEXT);
+        if (pEdit) { pEdit->SetWindowText(m_helpContent); pEdit->SetReadOnly(TRUE); }
+        return TRUE;
+    }
+};
+IMPLEMENT_DYNAMIC(CHelpDlgImpl, CDialogEx)
+
 #ifdef _DEBUG
 #define new DEBUG_NEW
 #undef THIS_FILE
@@ -666,7 +685,7 @@ void CTextStyleMgrDlg::OnBnClickedMorePlugins()
 
 void CTextStyleMgrDlg::ShowHelpDialog(const CString& title, const CString& content)
 {
-    CHelpDlg helpDlg(this);
+    CHelpDlgImpl helpDlg(this);
     helpDlg.m_helpContent = content;
     helpDlg.m_helpTitle = title;
     helpDlg.DoModal();
