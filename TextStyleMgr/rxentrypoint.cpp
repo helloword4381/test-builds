@@ -1,4 +1,4 @@
-// rxentrypoint.cpp : ZRX插件入口点
+﻿// rxentrypoint.cpp : ZRX插件入口点
 //
 
 #include "stdafx.h"
@@ -72,7 +72,7 @@ zcrxEntryPoint(AcRx::AppMsgCode msg, void* appId)
         acrxDynamicLinker->unlockApplication(appId);
         acrxDynamicLinker->registerAppMDIAware(appId);
         initApp();
-        acutPrintf(_T("\n文字样式与字体管理工具V4.0已加载。输入 TSM 命令启动。"));
+        acutPrintf(_T("\n文字样式与字体管理工具V4.0 by蒋先生 已加载。输入 TSM 命令启动。"));
         break;
     case AcRx::kUnloadAppMsg:
         unloadApp();
