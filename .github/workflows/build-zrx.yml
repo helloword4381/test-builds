@@ -73,6 +73,22 @@ jobs:
           Write-Host "$rcPath is already UTF-16 LE BOM"
         }
 
+    - name: Ensure source files have UTF-8 BOM
+      shell: pwsh
+      run: |
+        $sourceFiles = Get-ChildItem -Path 'TextStyleMgr' -Include '*.cpp','*.h' -Recurse
+        foreach ($file in $sourceFiles) {
+          $bytes = [System.IO.File]::ReadAllBytes($file.FullName)
+          $hasBom = ($bytes.Length -ge 3 -and $bytes[0] -eq 0xEF -and $bytes[1] -eq 0xBB -and $bytes[2] -eq 0xBF)
+          if (-not $hasBom) {
+            Write-Host "Adding UTF-8 BOM to $($file.FullName)"
+            $bom = [byte[]](0xEF, 0xBB, 0xBF)
+            $allBytes = $bom + $bytes
+            [System.IO.File]::WriteAllBytes($file.FullName, $allBytes)
+          }
+        }
+        Write-Host "All source files have UTF-8 BOM"
+
     - name: Build ZRX plugin
       shell: pwsh
       env:
