@@ -52,73 +52,51 @@ jobs:
         Write-Host "SDK root: $sdkRoot"
         echo "sdk_dir=$sdkRoot" >> $env:GITHUB_OUTPUT
 
-    - name: Inspect ZcString API
-      shell: pwsh
-      env:
-        ZRXSDK_DIR: ${{ steps.sdk.outputs.sdk_dir }}
-      run: |
-        $inc = "$env:ZRXSDK_DIR" + 'inc'
-        Write-Host "=== Looking for ZcString class definition ==="
-        $files = Get-ChildItem $inc -Recurse -Filter '*.h' -ErrorAction SilentlyContinue
-        foreach ($f in $files) {
-          $m = Select-String -Path $f.FullName -Pattern 'class\s+.*ZcString' -ErrorAction SilentlyContinue
-          if ($m) {
-            Write-Host "Found ZcString in: $($f.FullName)"
-            $m | ForEach-Object { Write-Host "  Line $($_.LineNumber): $($_.Line.Trim())" }
-          }
-        }
-        
-        Write-Host "`n=== Looking for ZcString operator LPCTSTR / c_str / kTcharPtr ==="
-        $files = Get-ChildItem $inc -Recurse -Filter 'zstring*.h' -ErrorAction SilentlyContinue
-        if (-not $files) {
-          $files = Get-ChildItem $inc -Recurse -Filter '*string*.h' -ErrorAction SilentlyContinue | Where-Object { $_.Name -notmatch 'stdstr|strutil' }
-        }
-        foreach ($f in $files) {
-          Write-Host "`n--- File: $($f.Name) ---"
-          Select-String -Path $f.FullName -Pattern 'operator\s+(LPCTSTR|const\s+TCHAR|const\s+wchar)|c_str\(|kTcharPtr|kwsz\(|const ZTCHAR' -ErrorAction SilentlyContinue | 
-            Select-Object -First 20 | ForEach-Object { Write-Host "  $($_.LineNumber): $($_.Line.Trim())" }
-        }
-        
-        Write-Host "`n=== Looking for TextStyleTableRecord members ==="
-        $files2 = Get-ChildItem $inc -Recurse -Filter '*.h' -ErrorAction SilentlyContinue
-        foreach ($f in $files2) {
-          $m = Select-String -Path $f.FullName -Pattern 'class\s+.*ZcDbTextStyleTableRecord' -ErrorAction SilentlyContinue
-          if ($m) {
-            Write-Host "`nFound ZcDbTextStyleTableRecord in: $($f.FullName)"
-            # Print lines around class definition (members)
-            $lines = Get-Content $f.FullName
-            for ($i = 0; $i -lt $lines.Count; $i++) {
-              if ($lines[$i] -match 'oblique|fileName|bigFontFileName|textSize|xScale|setName|setFileName|setBigFontFileName|setTextSize|setXScale') {
-                $line = $lines[$i].Trim()
-                if ($line -and $line -notmatch '^//') {
-                  Write-Host "  $($i+1): $line"
-                }
-              }
-            }
-          }
-        }
-
     - name: Build ZRX plugin
       shell: pwsh
       env:
         ZRXSDK_DIR: ${{ steps.sdk.outputs.sdk_dir }}
       run: |
-        msbuild "TextStyleMgr\TextStyleMgr.sln" /p:Configuration=Release /p:Platform=x64 /m /v:minimal
-      continue-on-error: true
+        msbuild "TextStyleMgr\TextStyleMgr.sln" /p:Configuration=Release /p:Platform=x64 /m /v:normal
 
-    - name: Locate built .zrx file
+    - name: Locate built plugin file
       id: artifact
       shell: pwsh
       run: |
-        $zrxFiles = Get-ChildItem -Path 'TextStyleMgr' -Recurse -Filter '*.zrx' -ErrorAction SilentlyContinue
-        if (-not $zrxFiles) {
-          $zrxFiles = Get-ChildItem -Path '.' -Recurse -Filter '*.zrx' -ErrorAction SilentlyContinue
+        Write-Host "=== Searching for .zrx files ==="
+        $pluginFiles = Get-ChildItem -Path 'TextStyleMgr' -Recurse -Filter '*.zrx' -ErrorAction SilentlyContinue
+        if (-not $pluginFiles) {
+          $pluginFiles = Get-ChildItem -Path '.' -Recurse -Filter '*.zrx' -ErrorAction SilentlyContinue
         }
-        if (-not $zrxFiles) { Write-Host "No .zrx file found"; exit 1 }
-        $zrxPath = $zrxFiles[0].FullName
-        Write-Host "Found ZRX file: $zrxPath"
+        
+        if (-not $pluginFiles) {
+          Write-Host "No .zrx file found. Searching for .dll as fallback..."
+          $dllFiles = Get-ChildItem -Path 'TextStyleMgr' -Recurse -Filter 'TextStyleMgr*.dll' -ErrorAction SilentlyContinue
+          if (-not $dllFiles) {
+            $dllFiles = Get-ChildItem -Path 'TextStyleMgr' -Recurse -Filter '*.dll' -ErrorAction SilentlyContinue |
+              Where-Object { $_.DirectoryName -match 'Release|Debug|x64' -and $_.Name -notmatch '^(mfc|afx|msvcr|vcruntime|ucrt|concrt|api-ms|mfcm)' }
+          }
+          if ($dllFiles) {
+            $dll = $dllFiles[0]
+            $zrxPath = [System.IO.Path]::ChangeExtension($dll.FullName, '.zrx')
+            Copy-Item $dll.FullName -Destination $zrxPath -Force
+            Write-Host "Renamed $($dll.FullName) -> $zrxPath"
+            $pluginFiles = @([PSCustomObject]@{ FullName = $zrxPath; Name = [System.IO.Path]::GetFileName($zrxPath) })
+          }
+        }
+        
+        Write-Host "`n=== Build output directory listing ==="
+        Get-ChildItem -Path 'TextStyleMgr' -Recurse -Include '*.zrx','*.dll','*.lib','*.pdb','*.exp' -ErrorAction SilentlyContinue |
+          ForEach-Object { Write-Host "  $($_.FullName) ($($_.Length) bytes)" }
+        
+        if (-not $pluginFiles) { 
+          Write-Host "ERROR: No .zrx or .dll plugin file found"
+          exit 1 
+        }
+        $zrxPath = $pluginFiles[0].FullName
+        Write-Host "Found plugin file: $zrxPath"
         echo "zrx_path=$zrxPath" >> $env:GITHUB_OUTPUT
-        echo "zrx_name=$($zrxFiles[0].Name)" >> $env:GITHUB_OUTPUT
+        echo "zrx_name=$($pluginFiles[0].Name)" >> $env:GITHUB_OUTPUT
 
     - name: Upload ZRX artifact
       uses: actions/upload-artifact@v4
