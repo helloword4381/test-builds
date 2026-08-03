@@ -19,20 +19,6 @@ jobs:
     - name: Add MSBuild to PATH
       uses: microsoft/setup-msbuild@v2
 
-    - name: Install v141 build tools
-      shell: pwsh
-      run: |
-        # 检查v141工具集是否可用
-        $vsPath = & "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" -latest -property installationPath
-        Write-Host "VS Path: $vsPath"
-        $v141Path = "$vsPath\VC\Tools\MSVC"
-        Write-Host "Installed MSVC versions:"
-        if (Test-Path $v141Path) {
-          Get-ChildItem $v141Path | Select-Object Name
-        } else {
-          Write-Host "v141 path not found"
-        }
-
     - name: Download ZRX SDK
       shell: pwsh
       run: |
@@ -50,59 +36,80 @@ jobs:
     - name: Extract SDK with 7-Zip
       shell: pwsh
       run: |
-        # 尝试用7z解压SDK安装包
         $sevenZip = Get-Command 7z -ErrorAction SilentlyContinue
         if (-not $sevenZip) {
           $sevenZip = 'C:\Program Files\7-Zip\7z.exe'
         }
         Write-Host "Using 7-Zip: $($sevenZip.Source ?? $sevenZip)"
-        
-        # 创建解压目录
         $extractPath = 'D:\ZRXSDK_EXTRACTED'
         New-Item -ItemType Directory -Path $extractPath -Force | Out-Null
-        
-        # 用7z解压
         & $sevenZip x 'ZRXSDK.exe' -o"$extractPath" -y 2>&1 | ForEach-Object { Write-Host $_ }
-        
-        # 列出解压后的文件结构
-        Write-Host "\nExtracted files structure:"
-        Get-ChildItem $extractPath -Recurse -Depth 3 | Select-Object FullName | Format-Table -AutoSize
 
     - name: Locate SDK root
       id: sdk
       shell: pwsh
       run: |
-        # 查找SDK根目录（包含inc和lib-x64的目录）
         $extractPath = 'D:\ZRXSDK_EXTRACTED'
-        $sdkRoot = $null
-        
-        # 递归查找包含 'inc' 目录的位置
         $incDirs = Get-ChildItem $extractPath -Recurse -Directory -Filter 'inc' -ErrorAction SilentlyContinue |
           Where-Object { Test-Path (Join-Path $_.Parent.FullName 'lib-x64') -PathType Container }
-        
         if ($incDirs) {
           $sdkRoot = $incDirs[0].Parent.FullName
-          Write-Host "Found SDK root: $sdkRoot"
         } else {
-          # 备选：查找包含 ZWCAD_2026_ZRXSDK 字样的目录
           $candidates = Get-ChildItem $extractPath -Recurse -Directory -ErrorAction SilentlyContinue |
             Where-Object { $_.Name -like '*ZRXSDK*' -or $_.Name -like '*ZRX*' }
           if ($candidates) {
             $sdkRoot = $candidates[0].FullName
-            Write-Host "Found candidate SDK root: $sdkRoot"
           }
         }
-        
         if (-not $sdkRoot) {
-          Write-Host "Could not auto-locate SDK root. Listing all top-level dirs:"
           Get-ChildItem $extractPath -Directory | Select-Object FullName
           throw "SDK root not found"
         }
-        
-        # 确保路径以反斜杠结尾
         if (-not $sdkRoot.EndsWith('\')) { $sdkRoot += '\' }
         Write-Host "SDK root: $sdkRoot"
         echo "sdk_dir=$sdkRoot" >> $env:GITHUB_OUTPUT
+
+    - name: Inspect SDK API (TextStyleTableRecord)
+      shell: pwsh
+      env:
+        ZRXSDK_DIR: ${{ steps.sdk.outputs.sdk_dir }}
+      run: |
+        $inc = "$env:ZRXSDK_DIR" + 'inc'
+        Write-Host "=== Searching for TextStyleTableRecord header ==="
+        $stylHeader = Get-ChildItem $inc -Recurse -Filter 'zdbstyl.h' -ErrorAction SilentlyContinue | Select-Object -First 1
+        if ($stylHeader) {
+          Write-Host "Found: $($stylHeader.FullName)"
+          Write-Host "=== Searching for member functions ==="
+          Select-String -Path $stylHeader.FullName -Pattern 'oblique|fileName|bigFontFileName|textSize|xScale|setName|setFileName|setBigFontFileName|setTextSize|setXScale' | ForEach-Object { Write-Host "$($_.LineNumber): $($_.Line.Trim())" }
+        } else {
+          Write-Host "zdbstyl.h not found, searching any header with TextStyleTableRecord"
+          Get-ChildItem $inc -Recurse -Filter '*.h' | ForEach-Object {
+            $matches = Select-String -Path $_.FullName -Pattern 'class.*ZcDbTextStyleTableRecord' -ErrorAction SilentlyContinue
+            if ($matches) { Write-Host "Found in: $($_.FullName)" }
+          }
+        }
+        
+        Write-Host "`n=== Searching for ZcString API ==="
+        $stringHeader = Get-ChildItem $inc -Recurse -Filter 'zcstring.h' -ErrorAction SilentlyContinue | Select-Object -First 1
+        if (-not $stringHeader) {
+          $stringHeader = Get-ChildItem $inc -Recurse -Filter '*.h' -ErrorAction SilentlyContinue | Where-Object { Select-String -Path $_.FullName -Pattern 'class.*ZcString' -Quiet -ErrorAction SilentlyContinue } | Select-Object -First 1
+        }
+        if ($stringHeader) {
+          Write-Host "Found: $($stringHeader.FullName)"
+          Select-String -Path $stringHeader.FullName -Pattern 'operator LPCTSTR|operator const TCHAR|c_str|kTcharPtr|kwsz|const TCHAR' -ErrorAction SilentlyContinue | Select-Object -First 30 | ForEach-Object { Write-Host "$($_.LineNumber): $($_.Line.Trim())" }
+        }
+        
+        Write-Host "`n=== Searching for RTNORM ==="
+        Get-ChildItem $inc -Recurse -Filter '*.h' | ForEach-Object {
+          $m = Select-String -Path $_.FullName -Pattern '#define.*RTNORM|RTNORM\s*=' -ErrorAction SilentlyContinue
+          if ($m) { $m | ForEach-Object { Write-Host "$($_.Path):$($_.LineNumber): $($_.Line.Trim())" } }
+        } | Select-Object -First 10
+        
+        Write-Host "`n=== Searching for ads_name and zcedSSGet ==="
+        Get-ChildItem $inc -Recurse -Filter '*.h' | ForEach-Object {
+          $m = Select-String -Path $_.FullName -Pattern 'zcedSSGet|ads_name|zcedSSLength|zcedSSName|zcedSSFree' -ErrorAction SilentlyContinue
+          if ($m) { $m | Select-Object -First 3 | ForEach-Object { Write-Host "$($_.Path):$($_.LineNumber): $($_.Line.Trim())" } }
+        }
 
     - name: Build ZRX plugin
       shell: pwsh
@@ -110,29 +117,31 @@ jobs:
         ZRXSDK_DIR: ${{ steps.sdk.outputs.sdk_dir }}
       run: |
         Write-Host "Using ZRXSDK_DIR: $env:ZRXSDK_DIR"
-        Write-Host "Building TextStyleMgr..."
-        msbuild "TextStyleMgr\TextStyleMgr.sln" `
-          /p:Configuration=Release `
-          /p:Platform=x64 `
-          /m `
-          /v:minimal `
-          /logger:"ConsoleLogger,Microsoft.Build;Verbosity=minimal;ShowSummary=false"
+        msbuild "TextStyleMgr\TextStyleMgr.sln" /p:Configuration=Release /p:Platform=x64 /m /v:minimal
+      continue-on-error: true
+
+    - name: Upload build logs on failure
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: build-logs
+        path: |
+          TextStyleMgr/x64/Release/*.log
+          TextStyleMgr/x64/Debug/*.log
+        if-no-files-found: ignore
+        retention-days: 7
 
     - name: Locate built .zrx file
       id: artifact
       shell: pwsh
       run: |
-        # 查找编译产物
         $zrxFiles = Get-ChildItem -Path 'TextStyleMgr' -Recurse -Filter '*.zrx' -ErrorAction SilentlyContinue
         if (-not $zrxFiles) {
-          # 也尝试在更广的范围查找
           $zrxFiles = Get-ChildItem -Path '.' -Recurse -Filter '*.zrx' -ErrorAction SilentlyContinue
         }
         if (-not $zrxFiles) {
-          Write-Host "No .zrx file found. Listing build outputs:"
-          Get-ChildItem -Path 'TextStyleMgr' -Recurse -Filter '*.dll' | Select-Object FullName
-          Get-ChildItem -Path 'TextStyleMgr' -Recurse -Directory | Select-Object FullName
-          throw "Build artifact .zrx not found"
+          Write-Host "No .zrx file found"
+          exit 1
         }
         $zrxPath = $zrxFiles[0].FullName
         Write-Host "Found ZRX file: $zrxPath"
