@@ -15,24 +15,6 @@ class CTextStyleMgrDlg : public CAcUiDialog
 {
     DECLARE_DYNAMIC(CTextStyleMgrDlg)
 
-    // 帮助对话框辅助类（ShowHelpDialog内部使用）
-    class CHelpDlg : public CDialogEx
-    {
-    public:
-        CHelpDlg(CWnd* pParent) : CDialogEx(IDD_HELP_DIALOG, pParent) {}
-        CString m_helpTitle;
-        CString m_helpContent;
-    protected:
-        virtual BOOL OnInitDialog()
-        {
-            CDialogEx::OnInitDialog();
-            SetWindowText(m_helpTitle);
-            CEdit* pEdit = (CEdit*)GetDlgItem(IDC_HELP_TEXT);
-            if (pEdit) { pEdit->SetWindowText(m_helpContent); pEdit->SetReadOnly(TRUE); }
-            return TRUE;
-        }
-    };
-
 public:
     CTextStyleMgrDlg(CWnd* pParent = NULL);
     virtual ~CTextStyleMgrDlg();
