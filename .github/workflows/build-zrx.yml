@@ -1,0 +1,148 @@
+name: Build ZRX Plugin
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'TextStyleMgr/**'
+      - '.github/workflows/build-zrx.yml'
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-2022
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Add MSBuild to PATH
+      uses: microsoft/setup-msbuild@v2
+
+    - name: Install v141 build tools
+      shell: pwsh
+      run: |
+        # 检查v141工具集是否可用
+        $vsPath = & "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" -latest -property installationPath
+        Write-Host "VS Path: $vsPath"
+        $v141Path = "$vsPath\VC\Tools\MSVC"
+        Write-Host "Installed MSVC versions:"
+        if (Test-Path $v141Path) {
+          Get-ChildItem $v141Path | Select-Object Name
+        } else {
+          Write-Host "v141 path not found"
+        }
+
+    - name: Download ZRX SDK
+      shell: pwsh
+      run: |
+        $url = 'https://github.com/helloword4381/test-builds/releases/download/zrx-sdk-v1/ZWCAD_2026_ZRXSDK_20250905.exe'
+        $output = 'ZRXSDK.exe'
+        Write-Host "Downloading SDK from $url"
+        $progressPreference = 'SilentlyContinue'
+        Invoke-WebRequest -Uri $url -OutFile $output -UseBasicParsing
+        $size = (Get-Item $output).Length
+        Write-Host "Downloaded: $size bytes"
+        if ($size -lt 1000000) {
+          throw "Download failed or file too small"
+        }
+
+    - name: Extract SDK with 7-Zip
+      shell: pwsh
+      run: |
+        # 尝试用7z解压SDK安装包
+        $sevenZip = Get-Command 7z -ErrorAction SilentlyContinue
+        if (-not $sevenZip) {
+          $sevenZip = 'C:\Program Files\7-Zip\7z.exe'
+        }
+        Write-Host "Using 7-Zip: $($sevenZip.Source ?? $sevenZip)"
+        
+        # 创建解压目录
+        $extractPath = 'D:\ZRXSDK_EXTRACTED'
+        New-Item -ItemType Directory -Path $extractPath -Force | Out-Null
+        
+        # 用7z解压
+        & $sevenZip x 'ZRXSDK.exe' -o"$extractPath" -y 2>&1 | ForEach-Object { Write-Host $_ }
+        
+        # 列出解压后的文件结构
+        Write-Host "\nExtracted files structure:"
+        Get-ChildItem $extractPath -Recurse -Depth 3 | Select-Object FullName | Format-Table -AutoSize
+
+    - name: Locate SDK root
+      id: sdk
+      shell: pwsh
+      run: |
+        # 查找SDK根目录（包含inc和lib-x64的目录）
+        $extractPath = 'D:\ZRXSDK_EXTRACTED'
+        $sdkRoot = $null
+        
+        # 递归查找包含 'inc' 目录的位置
+        $incDirs = Get-ChildItem $extractPath -Recurse -Directory -Filter 'inc' -ErrorAction SilentlyContinue |
+          Where-Object { Test-Path (Join-Path $_.Parent.FullName 'lib-x64') -PathType Container }
+        
+        if ($incDirs) {
+          $sdkRoot = $incDirs[0].Parent.FullName
+          Write-Host "Found SDK root: $sdkRoot"
+        } else {
+          # 备选：查找包含 ZWCAD_2026_ZRXSDK 字样的目录
+          $candidates = Get-ChildItem $extractPath -Recurse -Directory -ErrorAction SilentlyContinue |
+            Where-Object { $_.Name -like '*ZRXSDK*' -or $_.Name -like '*ZRX*' }
+          if ($candidates) {
+            $sdkRoot = $candidates[0].FullName
+            Write-Host "Found candidate SDK root: $sdkRoot"
+          }
+        }
+        
+        if (-not $sdkRoot) {
+          Write-Host "Could not auto-locate SDK root. Listing all top-level dirs:"
+          Get-ChildItem $extractPath -Directory | Select-Object FullName
+          throw "SDK root not found"
+        }
+        
+        # 确保路径以反斜杠结尾
+        if (-not $sdkRoot.EndsWith('\')) { $sdkRoot += '\' }
+        Write-Host "SDK root: $sdkRoot"
+        echo "sdk_dir=$sdkRoot" >> $env:GITHUB_OUTPUT
+
+    - name: Build ZRX plugin
+      shell: pwsh
+      env:
+        ZRXSDK_DIR: ${{ steps.sdk.outputs.sdk_dir }}
+      run: |
+        Write-Host "Using ZRXSDK_DIR: $env:ZRXSDK_DIR"
+        Write-Host "Building TextStyleMgr..."
+        msbuild "TextStyleMgr\TextStyleMgr.sln" `
+          /p:Configuration=Release `
+          /p:Platform=x64 `
+          /m `
+          /v:minimal `
+          /logger:"ConsoleLogger,Microsoft.Build;Verbosity=minimal;ShowSummary=false"
+
+    - name: Locate built .zrx file
+      id: artifact
+      shell: pwsh
+      run: |
+        # 查找编译产物
+        $zrxFiles = Get-ChildItem -Path 'TextStyleMgr' -Recurse -Filter '*.zrx' -ErrorAction SilentlyContinue
+        if (-not $zrxFiles) {
+          # 也尝试在更广的范围查找
+          $zrxFiles = Get-ChildItem -Path '.' -Recurse -Filter '*.zrx' -ErrorAction SilentlyContinue
+        }
+        if (-not $zrxFiles) {
+          Write-Host "No .zrx file found. Listing build outputs:"
+          Get-ChildItem -Path 'TextStyleMgr' -Recurse -Filter '*.dll' | Select-Object FullName
+          Get-ChildItem -Path 'TextStyleMgr' -Recurse -Directory | Select-Object FullName
+          throw "Build artifact .zrx not found"
+        }
+        $zrxPath = $zrxFiles[0].FullName
+        Write-Host "Found ZRX file: $zrxPath"
+        echo "zrx_path=$zrxPath" >> $env:GITHUB_OUTPUT
+        echo "zrx_name=$($zrxFiles[0].Name)" >> $env:GITHUB_OUTPUT
+
+    - name: Upload ZRX artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ steps.artifact.outputs.zrx_name }}
+        path: ${{ steps.artifact.outputs.zrx_path }}
+        if-no-files-found: error
+        retention-days: 90
