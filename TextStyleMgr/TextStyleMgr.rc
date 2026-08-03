@@ -1,0 +1,197 @@
+// Microsoft Visual C++ generated resource script.
+//
+#include "resource.h"
+
+#define APSTUDIO_READONLY_SYMBOLS
+/////////////////////////////////////////////////////////////////////////////
+//
+// Generated from the TEXTINCLUDE 2 resource.
+//
+#include "afxres.h"
+
+/////////////////////////////////////////////////////////////////////////////
+#undef APSTUDIO_READONLY_SYMBOLS
+
+/////////////////////////////////////////////////////////////////////////////
+// Chinese (Simplified) resources
+
+#if !defined(AFX_RESOURCE_DLL) || defined(AFX_TARG_CHS)
+LANGUAGE LANG_CHINESE, SUBLANG_CHINESE_SIMPLIFIED
+#pragma code_page(936)
+
+#ifdef APSTUDIO_INVOKED
+/////////////////////////////////////////////////////////////////////////////
+//
+// TEXTINCLUDE
+//
+
+1 TEXTINCLUDE
+BEGIN
+    "resource.h\0"
+END
+
+2 TEXTINCLUDE
+BEGIN
+    "#include ""afxres.h""\r\n"
+    "\0"
+END
+
+3 TEXTINCLUDE
+BEGIN
+    "\r\n"
+    "\0"
+END
+
+#endif    // APSTUDIO_INVOKED
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Dialog
+//
+
+IDD_TEXTSTYLE_MGR_DIALOG DIALOGEX 0, 0, 520, 460
+STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "文字样式与字体管理工具V4.0版(CAD自学网) by 周站长"
+FONT 9, "微软雅黑", 400, 0, 0x1
+BEGIN
+    // ========== 左侧：样式列表 ==========
+    GROUPBOX        "所有文字样式列表",IDC_STATIC,5,5,250,200
+    LTEXT           "当前样式:",IDC_STATIC,10,18,40,10
+    EDITTEXT        IDC_CURRENT_STYLE,55,16,120,12,ES_AUTOHSCROLL | ES_READONLY
+    PUSHBUTTON      "置为当前",IDC_BTN_SET_CURRENT,185,15,55,14
+    LISTBOX         IDC_STYLE_LIST,10,35,235,130,LBS_NOINTEGRALHEIGHT | WS_VSCROLL | WS_HSCROLL | TabStop
+    PUSHBUTTON      "新建",IDC_BTN_NEW_STYLE,10,170,50,14
+    PUSHBUTTON      "重命名",IDC_BTN_RENAME_STYLE,65,170,50,14
+    PUSHBUTTON      "删除",IDC_BTN_DELETE_STYLE,120,170,50,14
+    PUSHBUTTON      "清理",IDC_BTN_CLEAN_STYLE,175,170,50,14
+
+    // ========== 右侧：样式信息编辑 ==========
+    GROUPBOX        "所选文字样式信息",IDC_STATIC,265,5,250,200
+    LTEXT           "样式名:",IDC_STATIC,275,25,35,10
+    EDITTEXT        IDC_EDIT_STYLE_NAME,315,22,190,12,ES_AUTOHSCROLL
+    LTEXT           "字  体:",IDC_STATIC,275,45,35,10
+    EDITTEXT        IDC_EDIT_FONT_FILE,315,42,190,12,ES_AUTOHSCROLL
+    LTEXT           "大字体:",IDC_STATIC,275,65,35,10
+    EDITTEXT        IDC_EDIT_BIG_FONT,315,62,190,12,ES_AUTOHSCROLL
+    LTEXT           "字  高:",IDC_STATIC,275,85,35,10
+    EDITTEXT        IDC_EDIT_TEXT_HEIGHT,315,82,80,12,ES_AUTOHSCROLL
+    LTEXT           "宽度因子:",IDC_STATIC,275,105,40,10
+    EDITTEXT        IDC_EDIT_WIDTH_FACTOR,315,102,80,12,ES_AUTOHSCROLL
+    PUSHBUTTON      "修改",IDC_BTN_MODIFY_STYLE,420,140,80,18
+
+    // ========== 批量替换文字样式字体 ==========
+    GROUPBOX        "批量替换文字样式字体",IDC_STATIC,5,210,510,100
+    LTEXT           "提示: 选择文字样式和输入关键字支持同时使用，也可单独使用，自动判断使用哪种模式。",IDC_STATIC,10,222,500,12
+    LTEXT           "选择的文字样式",IDC_STATIC,10,238,80,10
+    LISTBOX         IDC_BATCH_STYLE_LIST,10,250,150,40,LBS_NOINTEGRALHEIGHT | WS_VSCROLL | LBS_EXTENDEDSEL | TabStop
+    PUSHBUTTON      "全选",IDC_BTN_BATCH_SELECT_ALL,10,293,45,12
+    PUSHBUTTON      "清除",IDC_BTN_BATCH_CLEAR,65,293,45,12
+    LTEXT           "输入匹配的文字样式关键字",IDC_STATIC,175,238,150,10
+    EDITTEXT        IDC_EDIT_KEYWORD,175,250,150,12,ES_AUTOHSCROLL
+    CONTROL         "勾选支持模糊匹配关键字",IDC_CHECK_FUZZY,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,175,268,130,10
+    LTEXT           "字体:",IDC_STATIC,340,238,25,10
+    EDITTEXT        IDC_EDIT_BATCH_FONT,365,235,60,12,ES_AUTOHSCROLL
+    LTEXT           "大字体:",IDC_STATIC,435,238,30,10
+    EDITTEXT        IDC_EDIT_BATCH_BIGFONT,465,235,45,12,ES_AUTOHSCROLL
+    PUSHBUTTON      "执行批量替换",IDC_BTN_BATCH_REPLACE,340,293,80,14
+
+    // ========== 批量统一文字样式 ==========
+    GROUPBOX        "批量统一文字样式",IDC_STATIC,5,315,510,40
+    LTEXT           "目标样式:",IDC_STATIC,10,328,40,10
+    COMBOBOX        IDC_COMBO_TARGET_STYLE,55,326,150,120,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    PUSHBUTTON      "统一为此样式",IDC_BTN_UNIFY_STYLE,215,325,70,14
+    LTEXT           "或选择样本文字后框选对象",IDC_STATIC,295,328,120,10
+    PUSHBUTTON      "选样本统一",IDC_BTN_UNIFY_SELECTION,420,325,70,14
+
+    // ========== 批量替换缺失字体 ==========
+    GROUPBOX        "批量替换缺失字体",IDC_STATIC,5,360,510,65
+    LTEXT           "默认字体:",IDC_STATIC,10,373,40,10
+    EDITTEXT        IDC_EDIT_MISSING_FONT,55,370,50,12,ES_AUTOHSCROLL
+    LTEXT           "大字体:",IDC_STATIC,115,373,30,10
+    EDITTEXT        IDC_EDIT_MISSING_BIGFONT,150,370,50,12,ES_AUTOHSCROLL
+    LTEXT           "TTF字体:",IDC_STATIC,210,373,35,10
+    EDITTEXT        IDC_EDIT_MISSING_TTF,250,370,50,12,ES_AUTOHSCROLL
+    LTEXT           "选择常用字体:",IDC_STATIC,10,395,55,10
+    COMBOBOX        IDC_COMBO_FONT_CHOICE,70,392,80,120,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    CONTROL         "记住设置",IDC_CHECK_REMEMBER,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,160,395,50,10
+    PUSHBUTTON      "替换缺失字体",IDC_BTN_REPLACE_MISSING,220,392,60,14
+    CONTROL         "自动执行",IDC_CHECK_AUTO_EXECUTE,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,290,395,50,10
+    LTEXT           "注：如使用自定义字体，请确保CAD软件安装了使用的字体。",IDC_STATIC,350,395,160,10
+
+    // ========== 底部按钮 ==========
+    PUSHBUTTON      "关闭",IDC_BTN_CLOSE,150,435,60,16
+    PUSHBUTTON      "帮助",IDC_BTN_HELP,230,435,60,16
+    PUSHBUTTON      "更多插件",IDC_BTN_MORE_PLUGINS,310,435,60,16
+END
+
+IDD_NEW_STYLE_DIALOG DIALOGEX 0, 0, 220, 150
+STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "新建文字样式"
+FONT 9, "微软雅黑", 400, 0, 0x1
+BEGIN
+    LTEXT           "样式名称:",IDC_STATIC,10,12,50,10
+    EDITTEXT        IDC_NEW_STYLE_NAME,65,10,145,12,ES_AUTOHSCROLL
+    LTEXT           "字体文件:",IDC_STATIC,10,32,50,10
+    EDITTEXT        IDC_NEW_FONT_FILE,65,30,145,12,ES_AUTOHSCROLL
+    LTEXT           "大字体:",IDC_STATIC,10,52,50,10
+    EDITTEXT        IDC_NEW_BIG_FONT,65,50,145,12,ES_AUTOHSCROLL
+    LTEXT           "字高:",IDC_STATIC,10,72,50,10
+    EDITTEXT        IDC_NEW_TEXT_HEIGHT,65,70,60,12,ES_AUTOHSCROLL
+    LTEXT           "宽度因子:",IDC_STATIC,10,92,50,10
+    EDITTEXT        IDC_NEW_WIDTH_FACTOR,65,90,60,12,ES_AUTOHSCROLL
+    DEFPUSHBUTTON   "确定",IDOK,95,125,50,14
+    PUSHBUTTON      "取消",IDCANCEL,155,125,50,14
+    LTEXT           "提示: 字体文件如 gbnor.shx 或 arial.ttf",IDC_STATIC,10,112,180,10
+END
+
+IDD_HELP_DIALOG DIALOGEX 0, 0, 400, 350
+STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "帮助说明"
+FONT 9, "微软雅黑", 400, 0, 0x1
+BEGIN
+    EDITTEXT        IDC_HELP_TEXT,5,5,390,315,ES_MULTILINE | ES_AUTOVSCROLL | ES_READONLY | WS_VSCROLL
+    DEFPUSHBUTTON   "关闭",IDOK,170,325,50,14
+END
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// DESIGNINFO
+//
+
+#ifdef APSTUDIO_INVOKED
+GUIDELINES DESIGNINFO
+BEGIN
+    IDD_TEXTSTYLE_MGR_DIALOG, DIALOG
+    BEGIN
+        LEFTMARGIN, 5
+        RIGHTMARGIN, 515
+        TOPMARGIN, 5
+        BOTTOMMARGIN, 455
+    END
+    IDD_NEW_STYLE_DIALOG, DIALOG
+    BEGIN
+        LEFTMARGIN, 5
+        RIGHTMARGIN, 215
+        TOPMARGIN, 5
+        BOTTOMMARGIN, 145
+    END
+    IDD_HELP_DIALOG, DIALOG
+    BEGIN
+        LEFTMARGIN, 5
+        RIGHTMARGIN, 395
+        TOPMARGIN, 5
+        BOTTOMMARGIN, 345
+    END
+END
+#endif    // APSTUDIO_INVOKED
+
+#endif    // Chinese (Simplified) resources
+/////////////////////////////////////////////////////////////////////////////
+
+#ifndef APSTUDIO_INVOKED
+/////////////////////////////////////////////////////////////////////////////
+//
+// Generated from the TEXTINCLUDE 3 resource.
+//
+/////////////////////////////////////////////////////////////////////////////
+#endif    // not APSTUDIO_INVOKED
