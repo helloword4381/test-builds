@@ -52,6 +52,27 @@ jobs:
         Write-Host "SDK root: $sdkRoot"
         echo "sdk_dir=$sdkRoot" >> $env:GITHUB_OUTPUT
 
+    - name: Ensure RC file is UTF-16 LE BOM
+      shell: pwsh
+      run: |
+        $rcPath = 'TextStyleMgr\TextStyleMgr.rc'
+        $bytes = [System.IO.File]::ReadAllBytes($rcPath)
+        $isUtf16LE = ($bytes.Length -ge 2 -and $bytes[0] -eq 0xFF -and $bytes[1] -eq 0xFE)
+        if (-not $isUtf16LE) {
+          Write-Host "Converting $rcPath to UTF-16 LE BOM..."
+          if ($bytes.Length -ge 3 -and $bytes[0] -eq 0xEF -and $bytes[1] -eq 0xBB -and $bytes[2] -eq 0xBF) {
+            $bytes = $bytes[3..($bytes.Length-1)]
+          }
+          $content = [System.Text.Encoding]::UTF8.GetString($bytes)
+          $utf16 = [System.Text.Encoding]::Unicode.GetBytes($content)
+          $bom = [byte[]](0xFF, 0xFE)
+          $allBytes = $bom + $utf16
+          [System.IO.File]::WriteAllBytes($rcPath, $allBytes)
+          Write-Host "Converted successfully"
+        } else {
+          Write-Host "$rcPath is already UTF-16 LE BOM"
+        }
+
     - name: Build ZRX plugin
       shell: pwsh
       env:

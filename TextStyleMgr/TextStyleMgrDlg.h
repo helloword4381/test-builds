@@ -1,4 +1,4 @@
-﻿// TextStyleMgrDlg.h : 主对话框头文件
+// TextStyleMgrDlg.h : 主对话框头文件
 //
 
 #pragma once
@@ -91,5 +91,4 @@ private:
 
     afx_msg void OnBnClickedClose();
     afx_msg void OnBnClickedHelp();
-    afx_msg void OnBnClickedMorePlugins();
 };

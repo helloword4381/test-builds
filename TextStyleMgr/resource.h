@@ -49,7 +49,6 @@
 // 底部按钮
 #define IDC_BTN_CLOSE                      1050
 #define IDC_BTN_HELP                       1051
-#define IDC_BTN_MORE_PLUGINS               1052
 
 // 新建样式对话框
 #define IDD_NEW_STYLE_DIALOG               110

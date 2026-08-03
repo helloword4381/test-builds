@@ -1,4 +1,4 @@
-﻿// TextStyleMgrDlg.cpp : 主对话框实现文件
+// TextStyleMgrDlg.cpp : 主对话框实现文件
 //
 
 #include "stdafx.h"
@@ -114,7 +114,6 @@ BEGIN_MESSAGE_MAP(CTextStyleMgrDlg, CAcUiDialog)
 
     ON_BN_CLICKED(IDC_BTN_CLOSE, &CTextStyleMgrDlg::OnBnClickedClose)
     ON_BN_CLICKED(IDC_BTN_HELP, &CTextStyleMgrDlg::OnBnClickedHelp)
-    ON_BN_CLICKED(IDC_BTN_MORE_PLUGINS, &CTextStyleMgrDlg::OnBnClickedMorePlugins)
 END_MESSAGE_MAP()
 
 BOOL CTextStyleMgrDlg::OnInitDialog()
@@ -658,29 +657,6 @@ void CTextStyleMgrDlg::OnBnClickedHelp()
         _T("- 命令: TSM 启动本工具");
 
     ShowHelpDialog(_T("帮助说明"), helpText);
-}
-
-void CTextStyleMgrDlg::OnBnClickedMorePlugins()
-{
-    CString pluginsText;
-    pluginsText = _T("更多CAD插件推荐：\r\n\r\n")
-        _T("1. CAD图纸批量打印工具\r\n")
-        _T("   - 支持批量打印多张图纸\r\n")
-        _T("   - 支持自定义打印参数\r\n\r\n")
-        _T("2. CAD属性提取工具\r\n")
-        _T("   - 提取图块属性到Excel\r\n")
-        _T("   - 支持批量导出\r\n\r\n")
-        _T("3. CAD标注样式管理工具\r\n")
-        _T("   - 管理标注样式\r\n")
-        _T("   - 批量修改标注设置\r\n\r\n")
-        _T("4. CAD图纸版本对比工具\r\n")
-        _T("   - 对比两个版本的图纸\r\n")
-        _T("   - 高亮显示差异区域\r\n\r\n")
-        _T("5. CAD图层管理工具\r\n")
-        _T("   - 批量管理图层\r\n")
-        _T("   - 图层状态保存与恢复");
-
-    ShowHelpDialog(_T("更多插件"), pluginsText);
 }
 
 void CTextStyleMgrDlg::ShowHelpDialog(const CString& title, const CString& content)
