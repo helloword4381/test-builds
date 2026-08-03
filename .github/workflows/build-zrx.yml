@@ -94,9 +94,28 @@ jobs:
       env:
         ZRXSDK_DIR: ${{ steps.sdk.outputs.sdk_dir }}
       run: |
-        msbuild "TextStyleMgr\TextStyleMgr.sln" /p:Configuration=Release /p:Platform=x64 /m /v:normal
+        $logFile = 'build_log.txt'
+        try {
+          msbuild "TextStyleMgr\TextStyleMgr.sln" /p:Configuration=Release /p:Platform=x64 /m /v:diag 2>&1 | Tee-Object -FilePath $logFile
+          $exitCode = $LASTEXITCODE
+        } catch {
+          $exitCode = 1
+        }
+        # Always upload log regardless of success/failure
+        Write-Host "Build exit code: $exitCode"
+        exit $exitCode
+
+    - name: Upload build log on failure
+      if: failure()
+      uses: actions/upload-artifact@v4
+      with:
+        name: build_log
+        path: build_log.txt
+        if-no-files-found: warn
+        retention-days: 7
 
     - name: Locate built plugin file
+      if: success()
       id: artifact
       shell: pwsh
       run: |
@@ -136,6 +155,7 @@ jobs:
         echo "zrx_name=$($pluginFiles[0].Name)" >> $env:GITHUB_OUTPUT
 
     - name: Upload ZRX artifact
+      if: success()
       uses: actions/upload-artifact@v4
       with:
         name: ${{ steps.artifact.outputs.zrx_name }}
