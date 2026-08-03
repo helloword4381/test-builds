@@ -53,19 +53,19 @@ bool CStyleManager::GetAllStyles(std::vector<TextStyleInfo>& styles)
         TextStyleInfo info;
         AcString strName;
         pRecord->getName(strName);
-        info.name = strName.kTcharPtr();
+        info.name = strName.kTCharPtr();
 
         AcString strFileName;
         pRecord->fileName(strFileName);
-        info.fontFile = strFileName.kTcharPtr();
+        info.fontFile = strFileName.kTCharPtr();
 
         AcString strBigFont;
         pRecord->bigFontFileName(strBigFont);
-        info.bigFontFile = strBigFont.kTcharPtr();
+        info.bigFontFile = strBigFont.kTCharPtr();
 
         info.textSize = pRecord->textSize();
         info.widthFactor = pRecord->xScale();
-        info.obliqueAngle = pRecord->obliqueAngle();
+        info.obliqueAngle = pRecord->obliquingAngle();
         info.isCurrent = (info.name.CompareNoCase(currentStyle) == 0);
 
         styles.push_back(info);
@@ -91,7 +91,7 @@ CString CStyleManager::GetCurrentStyleName()
 
     AcString strName;
     pRecord->getName(strName);
-    CString result = strName.kTcharPtr();
+    CString result = strName.kTCharPtr();
     pRecord->close();
     return result;
 }
@@ -342,7 +342,7 @@ void CStyleManager::GetUsedStyleNames(std::set<CString>& usedNames)
                 {
                     AcString strName;
                     pTsRecord->getName(strName);
-                    usedNames.insert(strName.kTcharPtr());
+                    usedNames.insert(strName.kTCharPtr());
                     pTsRecord->close();
                 }
             }
@@ -381,7 +381,7 @@ void CStyleManager::GetUsedStyleNames(std::set<CString>& usedNames)
                         {
                             AcString strName;
                             pTsRecord->getName(strName);
-                            usedNames.insert(strName.kTcharPtr());
+                            usedNames.insert(strName.kTCharPtr());
                             pTsRecord->close();
                         }
                     }
@@ -688,7 +688,7 @@ int CStyleManager::ReplaceMissingFonts(const CString& defaultFont,
 
         AcString strFont;
         pRecord->fileName(strFont);
-        CString fontFile = strFont.kTcharPtr();
+        CString fontFile = strFont.kTCharPtr();
 
         if (!fontFile.IsEmpty() && !IsFontExists(fontFile))
         {
@@ -701,7 +701,7 @@ int CStyleManager::ReplaceMissingFonts(const CString& defaultFont,
 
         AcString strBigFont;
         pRecord->bigFontFileName(strBigFont);
-        CString bigFont = strBigFont.kTcharPtr();
+        CString bigFont = strBigFont.kTCharPtr();
 
         if (!bigFont.IsEmpty() && !IsFontExists(bigFont))
         {
