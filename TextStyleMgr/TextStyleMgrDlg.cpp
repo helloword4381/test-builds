@@ -1,4 +1,4 @@
-// TextStyleMgrDlg.cpp : 主对话框实现文件
+﻿// TextStyleMgrDlg.cpp : 主对话框实现文件
 //
 
 #include "stdafx.h"
@@ -11,7 +11,7 @@ class CInputDialog : public CDialogEx
     DECLARE_DYNAMIC(CInputDialog)
 public:
     CInputDialog(const CString& title, const CString& label, const CString& initial, CWnd* pParent = NULL)
-        : CDialogEx(IDD_NEW_STYLE_DIALOG, pParent), m_title(title), m_label(label), m_value(initial) {}
+        : CDialogEx(IDD_TEXTSTYLE_MGR_DIALOG, pParent), m_title(title), m_label(label), m_value(initial) {}
     CString GetInput() const { return m_value; }
 protected:
     virtual void DoDataExchange(CDataExchange* pDX) {
@@ -187,6 +187,12 @@ void CTextStyleMgrDlg::OnLbnSelchangeStyleList()
     m_editFontFile.SetWindowText(info.fontFile.IsEmpty() ? _T("") : info.fontFile);
     m_editBigFont.SetWindowText(info.bigFontFile.IsEmpty() ? _T("无") : info.bigFontFile);
 
+    // 同步批量替换列表框的选中项
+    if (sel >= 0 && sel < m_batchStyleList.GetCount())
+    {
+        m_batchStyleList.SetSel(sel, TRUE);
+    }
+
     CString strTemp;
     strTemp.Format(_T("%.4g"), info.textSize);
     m_editTextHeight.SetWindowText(strTemp);
@@ -360,8 +366,12 @@ void CTextStyleMgrDlg::OnBnClickedModifyStyle()
         bigFont = _T("");
 
     CString errMsg;
+    double hVal = _tstof(height);
+    double wfVal = _tstof(widthFactor);
+    if (hVal < 0) hVal = 0;
+    if (wfVal <= 0) wfVal = 1.0;
     if (m_styleMgr.UpdateStyleInfo(styleName, fontFile, bigFont,
-                                   _tstof(height), _tstof(widthFactor), errMsg))
+                                   hVal, wfVal, errMsg))
     {
         RefreshStyleList();
         AfxMessageBox(_T("样式信息已更新"), MB_ICONINFORMATION);
@@ -601,7 +611,7 @@ void CTextStyleMgrDlg::OnBnClickedClose()
 void CTextStyleMgrDlg::OnBnClickedHelp()
 {
     CString helpText;
-    helpText = _T("文字样式与字体管理工具 V4.0\r\n\r\n")
+    helpText = _T("文字样式与字体管理工具 V4.0 by蒋先生\r\n\r\n")
         _T("【功能说明】\r\n")
         _T("1. 文字样式列表管理\r\n")
         _T("   - 新建：创建新的文字样式\r\n")
@@ -649,49 +659,15 @@ void CTextStyleMgrDlg::OnBnClickedMorePlugins()
         _T("   - 高亮显示差异区域\r\n\r\n")
         _T("5. CAD图层管理工具\r\n")
         _T("   - 批量管理图层\r\n")
-        _T("   - 图层状态保存与恢复\r\n\r\n")
-        _T("请访问 CAD自学网 获取更多精彩插件！");
+        _T("   - 图层状态保存与恢复");
 
     ShowHelpDialog(_T("更多插件"), pluginsText);
 }
 
 void CTextStyleMgrDlg::ShowHelpDialog(const CString& title, const CString& content)
 {
-    // 创建一个简单的帮助显示对话框
-    CDialogEx helpDlg;
-    helpDlg.Create(IDD_HELP_DIALOG, this);
-    helpDlg.SetWindowText(title);
-
-    CEdit* pEdit = (CEdit*)helpDlg.GetDlgItem(IDC_HELP_TEXT);
-    if (pEdit)
-    {
-        pEdit->SetWindowText(content);
-        pEdit->SetReadOnly(TRUE);
-    }
-
-    // 显示为模态样式
-    helpDlg.ShowWindow(SW_SHOW);
-    helpDlg.UpdateWindow();
-
-    // 简单的消息循环等待用户关闭
-    MSG msg;
-    while (helpDlg.IsWindowVisible())
-    {
-        if (::PeekMessage(&msg, NULL, 0, 0, PM_REMOVE))
-        {
-            if (msg.message == WM_QUIT)
-                break;
-            if (!AfxGetApp()->PreTranslateMessage(&msg))
-            {
-                ::TranslateMessage(&msg);
-                ::DispatchMessage(&msg);
-            }
-        }
-        else
-        {
-            ::WaitMessage();
-        }
-    }
-
-    helpDlg.DestroyWindow();
+    CHelpDlg helpDlg(this);
+    helpDlg.m_helpContent = content;
+    helpDlg.m_helpTitle = title;
+    helpDlg.DoModal();
 }
