@@ -115,7 +115,7 @@ BEGIN
     CONTROL         "记住设置",IDC_CHECK_REMEMBER,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,10,400,55,10
     CONTROL         "自动执行",IDC_CHECK_AUTO_EXECUTE,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,75,400,55,10
     PUSHBUTTON      "替换缺失字体",IDC_BTN_REPLACE_MISSING,140,397,80,14
-    LTEXT           "注：如使用自定义字体，请确保CAD软件安装了使用的字体。",IDC_STATIC,230,400,295,10
+    LTEXT           "注：如使用自定义字体，请确保CAD软件安装了使用的字体。",IDC_STATIC,225,400,310,14
 
     // ========== 底部按钮 ==========
     PUSHBUTTON      "关闭",IDC_BTN_CLOSE,210,448,70,16
