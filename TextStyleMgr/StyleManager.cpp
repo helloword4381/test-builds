@@ -530,9 +530,9 @@ bool CStyleManager::UnifyTextStyles(const CString& targetStyle, bool useSelectio
             return false;
         }
 
-        long len = 0;
+        int len = 0;
         acedSSLength(ssName, &len);
-        for (long i = 0; i < len; i++)
+        for (int i = 0; i < len; i++)
         {
             ads_name entName;
             acedSSName(ssName, i, entName);

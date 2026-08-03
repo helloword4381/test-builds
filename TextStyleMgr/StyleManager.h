@@ -10,6 +10,7 @@
 #include <dbsymtb.h>
 #include <dbents.h>
 #include <AcApDMgr.h>
+#include <adslib.h>
 #include <vector>
 #include <set>
 
