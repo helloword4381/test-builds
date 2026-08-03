@@ -55,9 +55,24 @@ bool CStyleManager::GetAllStyles(std::vector<TextStyleInfo>& styles)
         pRecord->getName(strName);
         info.name = strName.kTCharPtr();
 
+        // 优先获取 SHX 字体文件名；若为空则该样式使用 TrueType 字体，
+        // 改用 font() 获取 typeface（如 "宋体"、"微软雅黑"）
         AcString strFileName;
         pRecord->fileName(strFileName);
         info.fontFile = strFileName.kTCharPtr();
+
+        if (info.fontFile.IsEmpty())
+        {
+            ZcString sTypeface;
+            bool bold = false, italic = false;
+            Charset charset = kDefaultCharset;
+            ZwSoft::ZwCAD::PAL::FontUtils::FontPitch pitch = ZwSoft::ZwCAD::PAL::FontUtils::FontPitch::kDefault;
+            ZwSoft::ZwCAD::PAL::FontUtils::FontFamily family = ZwSoft::ZwCAD::PAL::FontUtils::FontFamily::kDoNotCare;
+            if (pRecord->font(sTypeface, bold, italic, charset, pitch, family) == Acad::eOk)
+            {
+                info.fontFile = sTypeface.kTCharPtr();
+            }
+        }
 
         AcString strBigFont;
         pRecord->bigFontFileName(strBigFont);
