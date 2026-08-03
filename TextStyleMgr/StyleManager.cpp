@@ -1,4 +1,4 @@
-// StyleManager.cpp : 文字样式管理核心逻辑实现
+﻿// StyleManager.cpp : 文字样式管理核心逻辑实现
 //
 
 #include "stdafx.h"
@@ -562,48 +562,83 @@ bool CStyleManager::UnifyTextStyles(const CString& targetStyle, bool useSelectio
     }
     else
     {
-        // 遍历模型空间所有文字对象
-        AcDbBlockTable* pBlockTable = NULL;
-        es = pDb->getBlockTable(pBlockTable, AcDb::kForRead);
-        if (es != Acad::eOk)
+        // 辅助函数：在指定块表记录中统一文字样式
+        auto unifyInSpace = [&](AcDbDatabase* _pDb, const TCHAR* spaceName, CString& _errMsg) -> bool
         {
-            errMsg = _T("无法打开块表");
-            return false;
-        }
-
-        AcDbBlockTableRecord* pModelSpace = NULL;
-        es = pBlockTable->getAt(ACDB_MODEL_SPACE, pModelSpace, AcDb::kForRead);
-        pBlockTable->close();
-        if (es != Acad::eOk)
-        {
-            errMsg = _T("无法打开模型空间");
-            return false;
-        }
-
-        AcDbBlockTableRecordIterator* pIter = NULL;
-        pModelSpace->newIterator(pIter);
-        for (pIter->start(); !pIter->done(); pIter->step())
-        {
-            AcDbEntity* pEnt = NULL;
-            if (pIter->getEntity(pEnt, AcDb::kForWrite) == Acad::eOk)
+            AcDbBlockTable* _pBlockTable = NULL;
+            Acad::ErrorStatus _es = _pDb->getBlockTable(_pBlockTable, AcDb::kForRead);
+            if (_es != Acad::eOk) { return false; }
+            AcDbBlockTableRecord* pSpace = NULL;
+            _es = _pBlockTable->getAt(spaceName, pSpace, AcDb::kForRead);
+            _pBlockTable->close();
+            if (_es != Acad::eOk) { return false; }
+            AcDbBlockTableRecordIterator* _pIter = NULL;
+            pSpace->newIterator(_pIter);
+            for (_pIter->start(); !_pIter->done(); _pIter->step())
             {
-                AcDbText* pText = AcDbText::cast(pEnt);
-                AcDbMText* pMText = AcDbMText::cast(pEnt);
-                if (pText)
+                AcDbEntity* pEnt = NULL;
+                if (_pIter->getEntity(pEnt, AcDb::kForWrite) == Acad::eOk)
                 {
-                    pText->setTextStyle(targetStyleId);
-                    affectedCount++;
+                    AcDbText* pText = AcDbText::cast(pEnt);
+                    AcDbMText* pMText = AcDbMText::cast(pEnt);
+                    if (pText) { pText->setTextStyle(targetStyleId); affectedCount++; }
+                    else if (pMText) { pMText->setTextStyle(targetStyleId); affectedCount++; }
+                    pEnt->close();
                 }
-                else if (pMText)
-                {
-                    pMText->setTextStyle(targetStyleId);
-                    affectedCount++;
-                }
-                pEnt->close();
             }
+            delete _pIter;
+            pSpace->close();
+            return true;
+        };
+        // 遍历模型空间
+        if (!unifyInSpace(pDb, ACDB_MODEL_SPACE, errMsg))
+        {
+            errMsg = _T("遍历模型空间失败");
+            return false;
         }
-        delete pIter;
-        pModelSpace->close();
+        // 遍历所有图纸空间
+        AcDbBlockTable* pBlockTable2 = NULL;
+        Acad::ErrorStatus es2 = pDb->getBlockTable(pBlockTable2, AcDb::kForRead);
+        if (es2 == Acad::eOk)
+        {
+            AcDbBlockTableIterator* pTblIter = NULL;
+            pBlockTable2->newIterator(pTblIter);
+            if (pTblIter)
+            {
+                for (pTblIter->start(); !pTblIter->done(); pTblIter->step())
+                {
+                    AcDbBlockTableRecord* pSpaceRec = NULL;
+                    if (pTblIter->getRecord(pSpaceRec, AcDb::kForRead) == Acad::eOk)
+                    {
+                        if (pSpaceRec->isLayout())
+                        {
+                            // 图纸空间
+                            AcDbBlockTableRecordIterator* pSpaceIter = NULL;
+                            pSpaceRec->newIterator(pSpaceIter);
+                            if (pSpaceIter)
+                            {
+                                for (pSpaceIter->start(); !pSpaceIter->done(); pSpaceIter->step())
+                                {
+                                    AcDbEntity* pEnt = NULL;
+                                    if (pSpaceIter->getEntity(pEnt, AcDb::kForWrite) == Acad::eOk)
+                                    {
+                                        AcDbText* pText = AcDbText::cast(pEnt);
+                                        AcDbMText* pMText = AcDbMText::cast(pEnt);
+                                        if (pText) { pText->setTextStyle(targetStyleId); affectedCount++; }
+                                        else if (pMText) { pMText->setTextStyle(targetStyleId); affectedCount++; }
+                                        pEnt->close();
+                                    }
+                                }
+                                delete pSpaceIter;
+                            }
+                        }
+                        pSpaceRec->close();
+                    }
+                }
+                delete pTblIter;
+            }
+            pBlockTable2->close();
+        }
     }
 
     return true;
